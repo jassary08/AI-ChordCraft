@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/ai-chordcraft-logo.png" width="180" alt="AI-ChordCraft logo" />
+  <img src="./assets/ai-chordcraft-title.png" width="680" alt="AI-ChordCraft" />
 </p>
 
 <div align="center">
