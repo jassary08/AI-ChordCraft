@@ -58,7 +58,7 @@ Compared with single-purpose MIR recognition tools, AI-ChordCraft focuses on a f
 The current automatic transcription pipeline integrates three groups of capabilities:
 
 - 🧱 **Music structure analysis**: SongFormer segments a full track into section labels such as intro, verse, chorus, bridge, and outro with time boundaries.
-- 🎹 **Automatic chord recognition**: a BTC-family ACR method trained with pseudo-labeling and selective knowledge distillation outputs timestamped chord events, which are aligned to song sections.
+- 🎹 **Automatic chord recognition**: a high-accuracy chord-recognition model outputs timestamped chord events, which are aligned to song sections.
 - 🧠 **LLM music understanding and reasoning**: MOSS-Music served through SGLang adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material.
 
 ### ✨ Features
@@ -111,7 +111,7 @@ This repository does not include:
 
 - MOSS-Music model weights or SGLang server code.
 - SongFormer model weights or structure-analysis service.
-- Pseudo-labeling + selective knowledge-distillation ACR model weights or runtime.
+- Automatic chord-recognition model weights or runtime.
 - Copyrighted example songs.
 
 Keep these components outside this repository and connect them through environment variables.
@@ -182,7 +182,7 @@ The main workflow currently does not fall back to LLM-based structure prompts wh
 
 #### 🎹 Chord-Recognition Runtime
 
-The default chord-recognition path follows the pseudo-labeling + selective knowledge-distillation method described in **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
+Chord recognition requires a local automatic chord-recognition runtime. By default, this project connects to the method implementation associated with **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
 
 ```env
 CHORDCRAFT_ACR_MODEL_DIR=/path/to/pseudo-label-kd-acr-runtime
