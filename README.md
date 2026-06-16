@@ -118,6 +118,50 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+Prepare the local third-party runtime layout:
+
+```bash
+bash scripts/prepare_third_party.sh
+```
+
+#### 📦 Third-Party Repositories and Checkpoints
+
+`third_party/` only stores local runtime dependencies and is ignored by Git. Clone upstream repositories and download checkpoints separately:
+
+```bash
+git clone https://github.com/OpenMOSS/MOSS-Music.git third_party/MOSS-Music
+git clone https://github.com/ASLP-lab/SongFormer.git third_party/SongFormer
+```
+
+For SongFormer, follow the upstream instructions or run its checkpoint fetch script from inside `third_party/SongFormer`:
+
+```bash
+cd third_party/SongFormer
+python utils/fetch_pretrained.py
+cd ../..
+```
+
+Download the remaining required checkpoints from the upstream project pages or model release pages, then place them in this layout:
+
+```text
+third_party/
+  MOSS-Music/
+    model/
+      MOSS-Music-8B-Thinking/
+      MOSS-Music-8B-Instruct/
+  SongFormer/
+    src/SongFormer/ckpts/SongFormer.safetensors
+    src/SongFormer/configs/SongFormer.yaml
+  pseudo_label_kd_acr/
+    btc_chord_recognition.py
+    config/btc_config.yaml
+    checkpoints/
+      btc/btc_combined_best.pth
+      SL/btc_model_large_voca.pt
+```
+
+If you use a different location, update `.env` instead of moving the files.
+
 #### 🧠 LLM Inference Service
 
 AI-ChordCraft usually connects to an existing LLM service by `base_url`, `api_key`, and `model_name`. MOSS-Music is recommended for music understanding, but any compatible service exposing `/generate` can be used:
@@ -131,6 +175,18 @@ CHORDCRAFT_SGLANG_MODEL_NAME=your-model-name
 ```
 
 `CHORDCRAFT_SGLANG_BASE_URL` is the default endpoint. `THINKING` and `INSTRUCT` can point to separate reasoning and instruction-following services; if you deploy only one model, set all three URLs to the same address. `CHORDCRAFT_SGLANG_API_KEY` is sent as a Bearer token and can be left empty for local services without authentication. `CHORDCRAFT_SGLANG_MODEL_NAME` is sent as the request `model` field for OpenAI-compatible or router-style services; leave it empty if your local `/generate` endpoint already binds to a fixed model.
+
+For a local MOSS-Music + SGLang setup, install the upstream runtime dependencies first, then start one or two local services:
+
+```bash
+# Start both Thinking and Instruct endpoints.
+bash scripts/start_llm_sglang.sh dual
+
+# Or start only the Instruct endpoint.
+bash scripts/start_llm_sglang.sh instruct
+```
+
+The script reads `.env` variables such as `CHORDCRAFT_SGLANG_WORKDIR`, `CHORDCRAFT_SGLANG_THINKING_MODEL_PATH`, `CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH`, ports, and GPU assignment. This script is optional; hosted OpenAI-compatible services only need the URL, API key, and model name above.
 
 #### 🧱 SongFormer Structure Service
 
@@ -149,13 +205,19 @@ POST ${CHORDCRAFT_SONGFORMER_BASE_URL}/api/songformer/segment
 
 The service should return JSON containing `segments`, `data.segments`, or `rawSegments`. Each segment should include a start time, end time, and section label; AI-ChordCraft normalizes common labels such as intro, verse, chorus, bridge, interlude, solo, and outro. If the service runs on another host or port, only replace `CHORDCRAFT_SONGFORMER_BASE_URL`. Increase `CHORDCRAFT_SONGFORMER_TIMEOUT` for long audio or slower GPU queues.
 
-You can also use a local SongFormer runtime by setting `structure_engine=songformer-local` and pointing AI-ChordCraft to the SongFormer root and model files:
+After cloning SongFormer and placing its checkpoint/config files, you can expose the service expected by AI-ChordCraft:
+
+```bash
+bash scripts/start_songformer_service.sh
+```
+
+You can also use a local in-process SongFormer runtime by setting `structure_engine=songformer-local` and pointing AI-ChordCraft to the SongFormer root and model files:
 
 ```env
-CHORDCRAFT_SONGFORMER_ROOT=/path/to/SongFormer
+CHORDCRAFT_SONGFORMER_ROOT=./third_party/SongFormer
 SONGFORMER_MODEL_NAME=SongFormer
-SONGFORMER_CHECKPOINT=SongFormer.safetensors
-SONGFORMER_CONFIG=SongFormer.yaml
+SONGFORMER_CHECKPOINT=src/SongFormer/ckpts/SongFormer.safetensors
+SONGFORMER_CONFIG=src/SongFormer/configs/SongFormer.yaml
 ```
 
 #### 🎹 Chord-Recognition Runtime
@@ -163,8 +225,10 @@ SONGFORMER_CONFIG=SongFormer.yaml
 Chord recognition requires a local automatic chord-recognition runtime. By default, this project connects to the method implementation associated with **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
 
 ```env
-CHORDCRAFT_ACR_MODEL_DIR=/path/to/pseudo-label-kd-acr-runtime
+CHORDCRAFT_ACR_MODEL_DIR=./third_party/pseudo_label_kd_acr
 ```
+
+This runtime is loaded in-process by AI-ChordCraft. No separate ACR service is required, but the runtime directory must contain `btc_chord_recognition.py`, `config/btc_config.yaml`, and the BTC checkpoints shown in the `third_party/` layout above.
 
 #### 🌐 Run the Web App
 
@@ -184,6 +248,7 @@ http://127.0.0.1:7862
 AI-ChordCraft/
   app.py                  # FastAPI web server
   frontend/               # Browser UI
+  third_party/README.md   # Local runtime layout; upstream code/checkpoints are ignored
   src/
     song_analysis.py      # Main analysis workflow and chord-sheet rendering
     chat_agent.py         # Follow-up music QA and prompt strategy
@@ -191,6 +256,9 @@ AI-ChordCraft/
     structure_recognition.py
     arrangement.py        # Arrangement-agent workflow
   scripts/
+    prepare_third_party.sh
+    start_llm_sglang.sh
+    start_songformer_service.sh
     run_demo.sh
   requirements.txt
 ```

@@ -8,3 +8,6 @@ uploads/
 *.log
 .DS_Store
 
+# Third-party code and checkpoints are prepared locally.
+third_party/*
+!third_party/README.md

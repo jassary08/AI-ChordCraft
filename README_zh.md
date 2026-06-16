@@ -119,6 +119,50 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+准备本地第三方运行时目录：
+
+```bash
+bash scripts/prepare_third_party.sh
+```
+
+#### 📦 第三方仓库与 Checkpoint
+
+`third_party/` 只用于放本地运行依赖，并已被 Git 忽略。请分别 clone 上游仓库并下载 checkpoint：
+
+```bash
+git clone https://github.com/OpenMOSS/MOSS-Music.git third_party/MOSS-Music
+git clone https://github.com/ASLP-lab/SongFormer.git third_party/SongFormer
+```
+
+SongFormer 可以按上游说明下载 checkpoint，也可以在 `third_party/SongFormer` 内运行其下载脚本：
+
+```bash
+cd third_party/SongFormer
+python utils/fetch_pretrained.py
+cd ../..
+```
+
+请从上游项目页面或模型发布页面下载其余所需 checkpoint，并按下面的结构放置：
+
+```text
+third_party/
+  MOSS-Music/
+    model/
+      MOSS-Music-8B-Thinking/
+      MOSS-Music-8B-Instruct/
+  SongFormer/
+    src/SongFormer/ckpts/SongFormer.safetensors
+    src/SongFormer/configs/SongFormer.yaml
+  pseudo_label_kd_acr/
+    btc_chord_recognition.py
+    config/btc_config.yaml
+    checkpoints/
+      btc/btc_combined_best.pth
+      SL/btc_model_large_voca.pt
+```
+
+如果你把这些组件放在其他位置，不需要移动文件，直接修改 `.env` 中对应路径即可。
+
 #### 🧠 LLM 推理服务
 
 AI-ChordCraft 更常用的接入方式是准备一个兼容 `/generate` 的 LLM 服务地址、API key 和 model name。推荐使用 MOSS-Music 作为音乐理解模型，也可以接入其他兼容服务：
@@ -132,6 +176,18 @@ CHORDCRAFT_SGLANG_MODEL_NAME=your-model-name
 ```
 
 `CHORDCRAFT_SGLANG_BASE_URL` 是默认地址；`THINKING` 和 `INSTRUCT` 可以分别指向擅长推理和指令跟随的服务。如果只部署一个模型，三个 URL 可以填写同一个地址。`CHORDCRAFT_SGLANG_API_KEY` 会以 Bearer Token 形式发送；本地无鉴权服务可以留空。`CHORDCRAFT_SGLANG_MODEL_NAME` 会作为请求中的 `model` 字段发送，适合 OpenAI-compatible 或路由型服务；如果本地 `/generate` 服务已经固定绑定模型，可以留空。
+
+如果使用本地 MOSS-Music + SGLang，请先安装上游运行依赖，然后启动一个或两个本地服务：
+
+```bash
+# 同时启动 Thinking 和 Instruct 端点。
+bash scripts/start_llm_sglang.sh dual
+
+# 或只启动 Instruct 端点。
+bash scripts/start_llm_sglang.sh instruct
+```
+
+脚本会读取 `.env` 中的 `CHORDCRAFT_SGLANG_WORKDIR`、`CHORDCRAFT_SGLANG_THINKING_MODEL_PATH`、`CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH`、端口和 GPU 配置。这个脚本是可选方案；如果使用托管的 OpenAI-compatible 服务，只需要配置上面的 URL、API key 和 model name。
 
 #### 🧱 SongFormer 结构服务
 
@@ -150,13 +206,19 @@ POST ${CHORDCRAFT_SONGFORMER_BASE_URL}/api/songformer/segment
 
 服务应返回包含 `segments`、`data.segments` 或 `rawSegments` 的 JSON。每个 segment 建议包含开始时间、结束时间和段落标签；AI-ChordCraft 会把 intro、verse、chorus、bridge、interlude、solo、outro 等常见标签规范化到谱面段落中。如果服务地址不是本机默认端口，只需要替换 `CHORDCRAFT_SONGFORMER_BASE_URL`。如果音频较长或 GPU 排队较慢，可以调大 `CHORDCRAFT_SONGFORMER_TIMEOUT`。
 
-也可以使用本地 SongFormer 运行时，此时需要设置 `structure_engine=songformer-local`，并额外指定 SongFormer 根目录和模型文件：
+clone SongFormer 并放好 checkpoint/config 后，可以启动 AI-ChordCraft 期望的结构服务：
+
+```bash
+bash scripts/start_songformer_service.sh
+```
+
+也可以使用进程内 SongFormer 运行时，此时需要设置 `structure_engine=songformer-local`，并额外指定 SongFormer 根目录和模型文件：
 
 ```env
-CHORDCRAFT_SONGFORMER_ROOT=/path/to/SongFormer
+CHORDCRAFT_SONGFORMER_ROOT=./third_party/SongFormer
 SONGFORMER_MODEL_NAME=SongFormer
-SONGFORMER_CHECKPOINT=SongFormer.safetensors
-SONGFORMER_CONFIG=SongFormer.yaml
+SONGFORMER_CHECKPOINT=src/SongFormer/ckpts/SongFormer.safetensors
+SONGFORMER_CONFIG=src/SongFormer/configs/SongFormer.yaml
 ```
 
 
@@ -165,9 +227,10 @@ SONGFORMER_CONFIG=SongFormer.yaml
 和弦识别需要本地自动和弦识别运行时。本项目默认使用论文 **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation** 对应的方法实现，请将模型目录设置为：
 
 ```env
-CHORDCRAFT_ACR_MODEL_DIR=/path/to/pseudo-label-kd-acr-runtime
+CHORDCRAFT_ACR_MODEL_DIR=./third_party/pseudo_label_kd_acr
 ```
 
+该运行时由 AI-ChordCraft 在进程内加载，不需要单独启动 ACR 服务。但目录中必须包含 `btc_chord_recognition.py`、`config/btc_config.yaml` 和上面 `third_party/` 结构中列出的 BTC checkpoint。
 
 #### 🌐 启动 Web 应用
 
@@ -188,6 +251,7 @@ http://127.0.0.1:7862
 AI-ChordCraft/
   app.py                  # FastAPI Web 服务
   frontend/               # 浏览器 UI
+  third_party/README.md   # 本地运行时结构说明；上游代码和 checkpoint 会被忽略
   src/
     song_analysis.py      # 主分析流程与和弦谱渲染
     chat_agent.py         # 后续音乐问答与 prompt 策略
@@ -195,6 +259,9 @@ AI-ChordCraft/
     structure_recognition.py
     arrangement.py        # 编配 Agent 流程
   scripts/
+    prepare_third_party.sh
+    start_llm_sglang.sh
+    start_songformer_service.sh
     run_demo.sh
   requirements.txt
 ```
