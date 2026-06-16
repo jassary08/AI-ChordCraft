@@ -55,6 +55,11 @@ DEFAULT_SGLANG_INSTRUCT_BASE_URL = os.environ.get(
     "CHORDCRAFT_SGLANG_INSTRUCT_BASE_URL",
     os.environ.get("MOSS_MUSIC_SGLANG_INSTRUCT_BASE_URL", "http://127.0.0.1:30001"),
 )
+DEFAULT_SGLANG_MODEL_NAME = (
+    os.environ.get("CHORDCRAFT_SGLANG_MODEL_NAME")
+    or os.environ.get("MOSS_MUSIC_SGLANG_MODEL_NAME")
+    or ""
+)
 SUPPORTED_AUDIO_SUFFIXES = {".wav", ".mp3", ".flac", ".m4a", ".ogg", ".aac"}
 SUPPORTED_VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 SUPPORTED_MEDIA_SUFFIXES = SUPPORTED_AUDIO_SUFFIXES | SUPPORTED_VIDEO_SUFFIXES
@@ -68,7 +73,7 @@ class AnalyzeRequest(BaseModel):
     base_url: str | None = DEFAULT_SGLANG_BASE_URL
     thinking_base_url: str | None = DEFAULT_SGLANG_THINKING_BASE_URL
     instruct_base_url: str | None = DEFAULT_SGLANG_INSTRUCT_BASE_URL
-    model_path: str | None = None
+    model_path: str | None = DEFAULT_SGLANG_MODEL_NAME
     max_new_tokens: int = 4096
     temperature: float = 0.0
     workflow: bool = True
@@ -88,7 +93,7 @@ class ArrangeRequest(BaseModel):
     purpose: str = "伴奏"
     backend: str = DEFAULT_BACKEND
     base_url: str | None = DEFAULT_SGLANG_INSTRUCT_BASE_URL
-    model_path: str | None = None
+    model_path: str | None = DEFAULT_SGLANG_MODEL_NAME
     max_new_tokens: int = 3072
     temperature: float = 0.2
     top_p: float = 0.9

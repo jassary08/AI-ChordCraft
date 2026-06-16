@@ -1,14 +1,11 @@
-# AI-ChordCraft
-
-<h1 align="center">
-  <img src="./assets/ai-chordcraft-logo.png" width="44" alt="AI-ChordCraft logo" />
-  AI-ChordCraft
-</h1>
+<p align="center">
+  <img src="./assets/ai-chordcraft-logo.png" width="180" alt="AI-ChordCraft logo" />
+</p>
 
 <div align="center">
 
 <img src="https://img.shields.io/badge/Task-Automatic_Chord_Transcription-red">
-<img src="https://img.shields.io/badge/LLM-MOSS--Music-blue">
+<img src="https://img.shields.io/badge/LLM-Compatible_API-blue">
 <img src="https://img.shields.io/badge/Structure-SongFormer-purple">
 <img src="https://img.shields.io/badge/Chord_ACR-Pseudo--Labeling_%2B_KD-orange">
 <img src="https://img.shields.io/badge/App-FastAPI-009688">
@@ -25,8 +22,6 @@
 <p align="center">
   <img src="./assets/ai-chordcraft-overview.png" width="96%" alt="AI-ChordCraft automatic chord transcription overview" />
 </p>
-
-This repository focuses on the application layer: the FastAPI server, browser UI, workflow orchestration, model adapters, guitar-arrangement helpers, and visualization tools. Large model weights and external inference services are not distributed with this repository; they should be deployed separately and connected through environment variables.
 
 ### 📰 News
 
@@ -51,15 +46,14 @@ AI-ChordCraft is designed to use LLMs to strengthen the traditional automatic tr
 Compared with single-purpose MIR recognition tools, AI-ChordCraft focuses on a full **recognition + explanation + interaction + arrangement** loop:
 
 - 🎧 **Recognition**: extract structure, chords, key, tempo, and lyrics from audio or video.
-- 🧠 **Explanation**: use MOSS-Music to describe sections, harmonic motion, overall style, and uncertain points in natural language.
+- 🧠 **Explanation**: use an external LLM to describe sections, harmonic motion, overall style, and uncertain points in natural language.
 - 💬 **Interaction**: select any section and ask why a chord appears, how a chorus can be reharmonized, or how to adapt it for guitar.
-- 🎸 **Arrangement**: the standalone `AI-Musician-Skills` project provides guitar voicing selection, capo suggestions, ChordPro export, and harmony charts.
 
 The current automatic transcription pipeline integrates three groups of capabilities:
 
 - 🧱 **Music structure analysis**: SongFormer segments a full track into section labels such as intro, verse, chorus, bridge, and outro with time boundaries.
 - 🎹 **Automatic chord recognition**: a high-accuracy chord-recognition model outputs timestamped chord events, which are aligned to song sections.
-- 🧠 **LLM music understanding and reasoning**: MOSS-Music served through SGLang adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material.
+- 🧠 **LLM music understanding and reasoning**: an external compatible LLM service adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material. MOSS-Music is recommended, but other compatible services can also be used.
 
 ### ✨ Features
 
@@ -69,9 +63,6 @@ The current automatic transcription pipeline integrates three groups of capabili
 - ▶️ **Timeline and section playback**: users can play the full track or jump to individual sections for manual review.
 - 💬 **Section selection and music QA**: selected sections can be used as context for questions about harmony, transcription rationale, arrangement, practice, and adaptation.
 - ⚙️ **Two analysis modes**: `core` runs the structure and chord pipeline; `full` also runs lyrics ASR and overall song description.
-- 🔀 **Task routing across endpoints**: different tasks can be routed to MOSS-Music Instruct / Thinking SGLang endpoints.
-- 🎸 **Guitar arrangement support**: chord voicing candidates, commonness / style annotation, chord-diagram rendering, and guitar-arrangement skills are included.
-- 📊 **Harmony chart skill**: existing chords or audio-derived chords can be converted into Roman numerals, harmonic functions, cadence notes, and measure grids.
 
 ### 🔄 Workflow
 
@@ -87,7 +78,7 @@ Audio Extraction and Normalization
         |
         +--> Pseudo-Labeling + KD ACR Chord Recognition
         |
-        +--> MOSS-Music Lyrics ASR and Song Description (full mode)
+        +--> External LLM Lyrics ASR and Song Description (full mode)
         |
         v
 Section Alignment and Chord-Sheet Rendering
@@ -103,16 +94,15 @@ Default web workflow:
 - `analysis_mode=core`
 - `backend=sglang`
 
-`core` mode skips lyrics ASR and the overall song description for faster chord-sheet generation. `full` mode requires the MOSS-Music Instruct service and is intended for lyrics, full-track description, and richer chat context.
+`core` mode skips lyrics ASR and the overall song description for faster chord-sheet generation. `full` mode requires an external LLM service and is intended for lyrics, full-track description, and richer chat context.
 
 ### 🧩 External Runtimes
 
 This repository does not include:
 
-- MOSS-Music model weights or SGLang server code.
+- External LLM / audio-language-model service and model weights.
 - SongFormer model weights or structure-analysis service.
 - Automatic chord-recognition model weights or runtime.
-- Copyrighted example songs.
 
 Keep these components outside this repository and connect them through environment variables.
 
@@ -121,64 +111,52 @@ Keep these components outside this repository and connect them through environme
 #### ⚙️ Environment Setup
 
 ```bash
-cd ChordCraft-Demo
+cd AI-ChordCraft
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Install and verify `ffmpeg`:
+#### 🧠 LLM Inference Service
 
-```bash
-ffmpeg -version
-```
-
-If `ffmpeg` is not on your system path, configure it in `.env`:
-
-```env
-CHORDCRAFT_FFMPEG=/path/to/ffmpeg
-CHORDCRAFT_FFPROBE=/path/to/ffprobe
-```
-
-#### 🧠 MOSS-Music SGLang Serving
-
-AI-ChordCraft needs an audio-language model service exposing an SGLang-compatible `/generate` endpoint:
+AI-ChordCraft usually connects to an existing LLM service by `base_url`, `api_key`, and `model_name`. MOSS-Music is recommended for music understanding, but any compatible service exposing `/generate` can be used:
 
 ```env
 CHORDCRAFT_SGLANG_BASE_URL=http://127.0.0.1:30000
 CHORDCRAFT_SGLANG_THINKING_BASE_URL=http://127.0.0.1:30000
 CHORDCRAFT_SGLANG_INSTRUCT_BASE_URL=http://127.0.0.1:30001
+CHORDCRAFT_SGLANG_API_KEY=your-api-key
+CHORDCRAFT_SGLANG_MODEL_NAME=your-model-name
 ```
 
-If this repository is placed next to the original `MOSS-Music` folder, you can use the helper script:
-
-```bash
-# Start both Thinking and Instruct models on ports 30000 and 30001.
-bash scripts/start_moss_music_sglang.sh dual
-
-# Or start only the Instruct model.
-bash scripts/start_moss_music_sglang.sh instruct
-```
-
-The script reads `.env` and supports custom model paths, ports, and GPU assignment:
-
-```env
-CHORDCRAFT_MOSS_THINKING_MODEL_PATH=../MOSS-Music/model/MOSS-Music-8B-Thinking
-CHORDCRAFT_MOSS_INSTRUCT_MODEL_PATH=../MOSS-Music/model/MOSS-Music-8B-Instruct
-CHORDCRAFT_MOSS_THINKING_CUDA_VISIBLE_DEVICES=0
-CHORDCRAFT_MOSS_INSTRUCT_CUDA_VISIBLE_DEVICES=1
-```
+`CHORDCRAFT_SGLANG_BASE_URL` is the default endpoint. `THINKING` and `INSTRUCT` can point to separate reasoning and instruction-following services; if you deploy only one model, set all three URLs to the same address. `CHORDCRAFT_SGLANG_API_KEY` is sent as a Bearer token and can be left empty for local services without authentication. `CHORDCRAFT_SGLANG_MODEL_NAME` is sent as the request `model` field for OpenAI-compatible or router-style services; leave it empty if your local `/generate` endpoint already binds to a fixed model.
 
 #### 🧱 SongFormer Structure Service
 
-Song structure segmentation uses SongFormer by default. Start SongFormer separately and expose:
+Song structure segmentation uses SongFormer by default. Start SongFormer separately and configure the service address in `.env`:
 
 ```env
 CHORDCRAFT_SONGFORMER_BASE_URL=http://127.0.0.1:8080
+CHORDCRAFT_SONGFORMER_TIMEOUT=900
 ```
 
-The main workflow currently does not fall back to LLM-based structure prompts when SongFormer is unavailable.
+AI-ChordCraft uploads the audio file to:
+
+```text
+POST ${CHORDCRAFT_SONGFORMER_BASE_URL}/api/songformer/segment
+```
+
+The service should return JSON containing `segments`, `data.segments`, or `rawSegments`. Each segment should include a start time, end time, and section label; AI-ChordCraft normalizes common labels such as intro, verse, chorus, bridge, interlude, solo, and outro. If the service runs on another host or port, only replace `CHORDCRAFT_SONGFORMER_BASE_URL`. Increase `CHORDCRAFT_SONGFORMER_TIMEOUT` for long audio or slower GPU queues.
+
+You can also use a local SongFormer runtime by setting `structure_engine=songformer-local` and pointing AI-ChordCraft to the SongFormer root and model files:
+
+```env
+CHORDCRAFT_SONGFORMER_ROOT=/path/to/SongFormer
+SONGFORMER_MODEL_NAME=SongFormer
+SONGFORMER_CHECKPOINT=SongFormer.safetensors
+SONGFORMER_CONFIG=SongFormer.yaml
+```
 
 #### 🎹 Chord-Recognition Runtime
 
@@ -186,22 +164,6 @@ Chord recognition requires a local automatic chord-recognition runtime. By defau
 
 ```env
 CHORDCRAFT_ACR_MODEL_DIR=/path/to/pseudo-label-kd-acr-runtime
-```
-
-#### 🎸 AI Musician Skills
-
-The guitar-arrangement and harmony-chart skills are published as a standalone project. By default, AI-ChordCraft looks for the package next to this repository:
-
-```text
-AI-musician/
-  ChordCraft-Demo/
-  AI-Musician-Skills/
-```
-
-If the skill project lives elsewhere, set:
-
-```env
-CHORDCRAFT_GUITAR_SKILL_DIR=/path/to/AI-Musician-Skills/guitar-arrange-skill
 ```
 
 #### 🌐 Run the Web App
@@ -216,44 +178,26 @@ Open:
 http://127.0.0.1:7862
 ```
 
-Voicing annotation workspace:
-
-```text
-http://127.0.0.1:7862/annotator
-```
-
 ### 🗂️ Project Layout
 
 ```text
-ChordCraft-Demo/
+AI-ChordCraft/
   app.py                  # FastAPI web server
   frontend/               # Browser UI
   src/
     song_analysis.py      # Main analysis workflow and chord-sheet rendering
     chat_agent.py         # Follow-up music QA and prompt strategy
-    chord_recognition.py  # Pseudo-labeling/KD ACR, Essentia-style helpers, postprocessing
+    chord_recognition.py  # Automatic chord recognition, Essentia-style helpers, postprocessing
     structure_recognition.py
     arrangement.py        # Arrangement-agent workflow
   scripts/
     run_demo.sh
-    start_moss_music_sglang.sh
   requirements.txt
-```
-
-The standalone skill project should be released beside this repository:
-
-```text
-AI-Musician-Skills/
-  README.md
-  guitar-arrange-skill/
-  harmony-chart-skill/
 ```
 
 ### 🔗 More Information
 
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
-- **MOSS-Audio**: [https://github.com/OpenMOSS/MOSS-Audio](https://github.com/OpenMOSS/MOSS-Audio)
-- **MOSS-Music Data Pipeline**: [https://github.com/wx9songs/MOSS-Music-Data-Pipeline](https://github.com/wx9songs/MOSS-Music-Data-Pipeline)
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
 

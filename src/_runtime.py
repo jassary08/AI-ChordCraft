@@ -39,6 +39,14 @@ def read_request_timeout() -> int:
     )
 
 
+def read_sglang_model_name() -> str:
+    return (
+        os.environ.get("CHORDCRAFT_SGLANG_MODEL_NAME")
+        or os.environ.get("MOSS_MUSIC_SGLANG_MODEL_NAME")
+        or ""
+    ).strip()
+
+
 def build_sglang_headers(api_key: str | None = None) -> dict[str, str]:
     headers = {"Content-Type": "application/json"}
     token = (
@@ -84,11 +92,13 @@ def generate_with_sglang(
     prompt: str,
     base_url: str | None = None,
     api_key: str | None = None,
+    model_name_or_path: str | None = None,
     max_new_tokens: int = 4096,
     temperature: float = 0.0,
     top_p: float = 1.0,
     top_k: int = 50,
 ) -> str:
+    model_name = (model_name_or_path or read_sglang_model_name()).strip()
     payload = {
         "text": prompt,
         "audio_data": audio_path,
@@ -99,6 +109,8 @@ def generate_with_sglang(
             "top_k": top_k,
         },
     }
+    if model_name:
+        payload["model"] = model_name
     endpoint = f"{(base_url or read_sglang_base_url()).rstrip('/')}/generate"
     response = requests.post(
         endpoint,
@@ -123,13 +135,14 @@ def generate_text(
     top_p: float = 1.0,
     top_k: int = 50,
 ) -> str:
-    _ = model_name_or_path, device
+    _ = device
     if backend == "sglang":
         return generate_with_sglang(
             audio_path=audio_path,
             prompt=prompt,
             base_url=base_url,
             api_key=api_key,
+            model_name_or_path=model_name_or_path,
             max_new_tokens=max_new_tokens,
             temperature=temperature,
             top_p=top_p,
