@@ -1,0 +1,1 @@
+"""AI-ChordCraft backend package."""

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-ChordCraft 和弦工作台</title>
+  <link rel="stylesheet" href="assets/styles.css?v=20260607j" />
+</head>
+<body data-api-base=".">
+  <main class="app-shell">
+    <aside class="interaction-panel">
+      <header class="brand-panel">
+        <div class="brand-row">
+          <span class="brand-mark">C</span>
+          <div>
+            <h1>AI-ChordCraft</h1>
+            <p>和弦谱生成与音乐问答工作台</p>
+          </div>
+        </div>
+        <div class="run-status" id="status">就绪</div>
+      </header>
+
+      <form id="analyze-form" class="upload-flow">
+        <label class="upload-card" for="media-file">
+          <input id="media-file" type="file" accept="audio/*,video/*,.mp3,.wav,.flac,.m4a,.ogg,.aac,.mp4,.mov,.m4v,.webm,.mkv,.avi" required />
+          <canvas id="waveform" width="640" height="180" aria-hidden="true"></canvas>
+          <span class="upload-primary">上传音频</span>
+          <span class="upload-file" id="filename">尚未选择媒体文件</span>
+          <span class="media-hint">支持音频或视频，视频会自动抽取音轨。</span>
+        </label>
+
+        <div class="analysis-mode-switch model-switch" role="radiogroup" aria-label="分析模式">
+          <label>
+            <input type="radio" name="analysis_mode" value="core" checked />
+            <span>Core</span>
+          </label>
+          <label>
+            <input type="radio" name="analysis_mode" value="full" />
+            <span>Full</span>
+          </label>
+        </div>
+
+        <button class="primary-button" id="submit" type="submit">生成和弦谱</button>
+      </form>
+
+      <section class="chat-panel" aria-label="上下文问答">
+        <div class="panel-heading">
+          <span>当前歌曲上下文</span>
+          <strong>继续提问</strong>
+        </div>
+        <div class="selection-context" id="selection-context">
+          <div>
+            <span>选中片段</span>
+            <strong id="selection-count">0</strong>
+          </div>
+          <button class="selection-clear" id="selection-clear" type="button" disabled>清空</button>
+        </div>
+        <div class="chat-feed" id="chat-feed" aria-live="polite"></div>
+        <form class="chat-form" id="chat-form">
+          <div class="model-switch" role="radiogroup" aria-label="模型选择">
+            <label>
+              <input type="radio" name="model_mode" value="instruct" checked />
+              <span>Instruct</span>
+            </label>
+            <label>
+              <input type="radio" name="model_mode" value="thinking" />
+              <span>Thinking</span>
+            </label>
+          </div>
+          <textarea id="chat-message" name="message" rows="4" placeholder="生成和弦谱后，可以继续问：副歌怎么改成钢琴弹唱？这段适合什么节奏型？"></textarea>
+          <button class="secondary-button" id="chat-submit" type="submit" disabled>发送追问</button>
+        </form>
+      </section>
+    </aside>
+
+    <section class="score-stage">
+      <div id="chart-view" class="chart-surface empty-score">
+        <div class="empty-score-card">
+          <div class="empty-orbit">
+            <span>C</span>
+          </div>
+          <div>
+            <strong>等待生成和弦谱</strong>
+            <p>上传音频后，结构段落、和弦与歌词会在这里组成可读的谱面。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="processing-template">
+    <div class="processing-card">
+      <div class="meter-stack">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <strong>正在分析媒体</strong>
+      <p id="processing-copy">正在识别结构与和弦。</p>
+    </div>
+  </template>
+
+  <script src="assets/app.js?v=20260607j"></script>
+</body>
+</html>

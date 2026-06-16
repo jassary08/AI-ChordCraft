@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-ChordCraft Voicing Annotator</title>
+  <link rel="stylesheet" href="assets/annotator.css?v=20260611a" />
+</head>
+<body data-api-base=".">
+  <main class="annotator-shell">
+    <aside class="workflow-panel">
+      <header class="brand-block">
+        <a class="back-link" href="/">AI-ChordCraft</a>
+        <h1>和弦指法标注台</h1>
+        <p>为大库中的候选手型标注常用程度、风格适配与审核状态。</p>
+      </header>
+
+      <section class="workflow-card">
+        <div class="section-kicker">标注流程</div>
+        <ol class="workflow-steps">
+          <li>
+            <span>01</span>
+            <div>
+              <strong>输入和弦进行</strong>
+              <p>先按一首歌或一种场景输入，例如 C Am F G 或 Em7 Am7 B7。</p>
+            </div>
+          </li>
+          <li>
+            <span>02</span>
+            <div>
+              <strong>筛选候选指法</strong>
+              <p>优先判断常见开放位、标准横按、风格化小型和弦。</p>
+            </div>
+          </li>
+          <li>
+            <span>03</span>
+            <div>
+              <strong>打常用度</strong>
+              <p>用五档常用度标记“首选标准”到“不采用”。</p>
+            </div>
+          </li>
+          <li>
+            <span>04</span>
+            <div>
+              <strong>补充语境</strong>
+              <p>标注适用风格、是否适合初学者、备注真实使用理由。</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <form class="query-card" id="query-form">
+        <label>
+          <span>调式</span>
+          <input id="key-input" value="C major" autocomplete="off" />
+        </label>
+        <label>
+          <span>和弦进行</span>
+          <textarea id="progression-input" rows="4">C Am F G</textarea>
+        </label>
+        <label>
+          <span>每个和弦候选数量</span>
+          <input id="limit-input" type="number" min="4" max="80" value="24" />
+        </label>
+        <button class="primary-button" type="submit">载入候选指法</button>
+      </form>
+
+      <section class="save-card">
+        <div>
+          <span>本轮已标注</span>
+          <strong id="draft-count">0</strong>
+        </div>
+        <button id="save-button" class="save-button" type="button" disabled>保存标注</button>
+        <button id="export-button" class="ghost-button" type="button" disabled>导出 JSON</button>
+        <p id="status-line">等待载入候选。</p>
+      </section>
+    </aside>
+
+    <section class="workspace-panel">
+      <div class="toolbar">
+        <div>
+          <div class="section-kicker">候选池</div>
+          <h2 id="workspace-title">C Am F G</h2>
+        </div>
+        <div class="legend">
+          <span><i class="dot preferred"></i>首选</span>
+          <span><i class="dot common"></i>常用</span>
+          <span><i class="dot rejected"></i>不采用</span>
+        </div>
+      </div>
+
+      <div class="summary-strip" id="summary-strip"></div>
+      <div class="candidate-board" id="candidate-board">
+        <div class="empty-state">
+          <strong>载入和弦后开始标注</strong>
+          <p>建议先从最常见的 I-vi-IV-V、十二小节 blues、G/D/C/A/E 开放和弦体系开始。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="candidate-template">
+    <article class="voicing-card">
+      <div class="card-top">
+        <div>
+          <strong class="voicing-name"></strong>
+          <span class="voicing-meta"></span>
+        </div>
+        <span class="annotation-badge">未标注</span>
+      </div>
+      <div class="diagram-host"></div>
+      <div class="rating-row" role="group" aria-label="常用程度"></div>
+      <div class="tag-grid"></div>
+      <textarea class="note-input" rows="2" placeholder="备注：为什么常用、适合什么位置、是否需要避免"></textarea>
+    </article>
+  </template>
+
+  <script src="assets/annotator.js?v=20260611a"></script>
+</body>
+</html>
