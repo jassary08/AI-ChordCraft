@@ -28,11 +28,11 @@
 
 This repository focuses on the application layer: the FastAPI server, browser UI, workflow orchestration, model adapters, guitar-arrangement helpers, and visualization tools. Large model weights and external inference services are not distributed with this repository; they should be deployed separately and connected through environment variables.
 
-### News
+### 📰 News
 
-- 2026.06: Released AI-ChordCraft, an LLM-enhanced workspace for automatic chord transcription and interactive chord-sheet generation.
+- 🎉 2026.06: Released AI-ChordCraft, an LLM-enhanced workspace for automatic chord transcription and interactive chord-sheet generation.
 
-### Contents
+### 📚 Contents
 
 - [Introduction](#introduction)
 - [Features](#features)
@@ -44,36 +44,36 @@ This repository focuses on the application layer: the FastAPI server, browser UI
 - [License Notes](#license-notes)
 - [Citation](#citation)
 
-### Introduction
+### 🎼 Introduction
 
 AI-ChordCraft is designed to use LLMs to strengthen the traditional automatic transcription workflow. It produces more than a flat chord list: structure, harmony, lyrics, key, tempo, section boundaries, and playable timestamps are organized into a practical working document for performance, review, arrangement, and discussion. Users can inspect sections, play local audio regions, ask follow-up questions about transcription decisions, and pass the result to downstream arrangement tools.
 
 Compared with single-purpose MIR recognition tools, AI-ChordCraft focuses on a full **recognition + explanation + interaction + arrangement** loop:
 
-- **Recognition**: extract structure, chords, key, tempo, and lyrics from audio or video.
-- **Explanation**: use MOSS-Music to describe sections, harmonic motion, overall style, and uncertain points in natural language.
-- **Interaction**: select any section and ask why a chord appears, how a chorus can be reharmonized, or how to adapt it for guitar.
-- **Arrangement**: the standalone `AI-Musician-Skills` project provides guitar voicing selection, capo suggestions, ChordPro export, and harmony charts.
+- 🎧 **Recognition**: extract structure, chords, key, tempo, and lyrics from audio or video.
+- 🧠 **Explanation**: use MOSS-Music to describe sections, harmonic motion, overall style, and uncertain points in natural language.
+- 💬 **Interaction**: select any section and ask why a chord appears, how a chorus can be reharmonized, or how to adapt it for guitar.
+- 🎸 **Arrangement**: the standalone `AI-Musician-Skills` project provides guitar voicing selection, capo suggestions, ChordPro export, and harmony charts.
 
 The current automatic transcription pipeline integrates three groups of capabilities:
 
-- **Music structure analysis**: SongFormer segments a full track into section labels such as intro, verse, chorus, bridge, and outro with time boundaries.
-- **Automatic chord recognition**: a BTC-family ACR method trained with pseudo-labeling and selective knowledge distillation outputs timestamped chord events, which are aligned to song sections.
-- **LLM music understanding and reasoning**: MOSS-Music served through SGLang adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material.
+- 🧱 **Music structure analysis**: SongFormer segments a full track into section labels such as intro, verse, chorus, bridge, and outro with time boundaries.
+- 🎹 **Automatic chord recognition**: a BTC-family ACR method trained with pseudo-labeling and selective knowledge distillation outputs timestamped chord events, which are aligned to song sections.
+- 🧠 **LLM music understanding and reasoning**: MOSS-Music served through SGLang adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material.
 
-### Features
+### ✨ Features
 
-- **Browser upload for audio and video**: common audio and video formats are supported; video files are converted to audio before analysis.
-- **LLM-enhanced automatic transcription**: audio / video is converted into a usable lead sheet with structure, chords, lyrics, key, tempo, and explanatory context.
-- **Section-aware chord-sheet generation**: sections display chords, timestamps, lyrics, key, tempo, and overall metadata.
-- **Timeline and section playback**: users can play the full track or jump to individual sections for manual review.
-- **Section selection and music QA**: selected sections can be used as context for questions about harmony, transcription rationale, arrangement, practice, and adaptation.
-- **Two analysis modes**: `core` runs the structure and chord pipeline; `full` also runs lyrics ASR and overall song description.
-- **Task routing across endpoints**: different tasks can be routed to MOSS-Music Instruct / Thinking SGLang endpoints.
-- **Guitar arrangement support**: chord voicing candidates, commonness / style annotation, chord-diagram rendering, and guitar-arrangement skills are included.
-- **Harmony chart skill**: existing chords or audio-derived chords can be converted into Roman numerals, harmonic functions, cadence notes, and measure grids.
+- 📤 **Browser upload for audio and video**: common audio and video formats are supported; video files are converted to audio before analysis.
+- ✨ **LLM-enhanced automatic transcription**: audio / video is converted into a usable lead sheet with structure, chords, lyrics, key, tempo, and explanatory context.
+- 🎼 **Section-aware chord-sheet generation**: sections display chords, timestamps, lyrics, key, tempo, and overall metadata.
+- ▶️ **Timeline and section playback**: users can play the full track or jump to individual sections for manual review.
+- 💬 **Section selection and music QA**: selected sections can be used as context for questions about harmony, transcription rationale, arrangement, practice, and adaptation.
+- ⚙️ **Two analysis modes**: `core` runs the structure and chord pipeline; `full` also runs lyrics ASR and overall song description.
+- 🔀 **Task routing across endpoints**: different tasks can be routed to MOSS-Music Instruct / Thinking SGLang endpoints.
+- 🎸 **Guitar arrangement support**: chord voicing candidates, commonness / style annotation, chord-diagram rendering, and guitar-arrangement skills are included.
+- 📊 **Harmony chart skill**: existing chords or audio-derived chords can be converted into Roman numerals, harmonic functions, cadence notes, and measure grids.
 
-### Workflow
+### 🔄 Workflow
 
 AI-ChordCraft connects audio-analysis modules and LLM reasoning modules into a transcription-oriented workflow:
 
@@ -105,7 +105,7 @@ Default web workflow:
 
 `core` mode skips lyrics ASR and the overall song description for faster chord-sheet generation. `full` mode requires the MOSS-Music Instruct service and is intended for lyrics, full-track description, and richer chat context.
 
-### External Runtimes
+### 🧩 External Runtimes
 
 This repository does not include:
 
@@ -116,9 +116,9 @@ This repository does not include:
 
 Keep these components outside this repository and connect them through environment variables.
 
-### Quickstart
+### 🚀 Quickstart
 
-#### Environment Setup
+#### ⚙️ Environment Setup
 
 ```bash
 cd ChordCraft-Demo
@@ -141,7 +141,7 @@ CHORDCRAFT_FFMPEG=/path/to/ffmpeg
 CHORDCRAFT_FFPROBE=/path/to/ffprobe
 ```
 
-#### MOSS-Music SGLang Serving
+#### 🧠 MOSS-Music SGLang Serving
 
 AI-ChordCraft needs an audio-language model service exposing an SGLang-compatible `/generate` endpoint:
 
@@ -170,7 +170,7 @@ CHORDCRAFT_MOSS_THINKING_CUDA_VISIBLE_DEVICES=0
 CHORDCRAFT_MOSS_INSTRUCT_CUDA_VISIBLE_DEVICES=1
 ```
 
-#### SongFormer Structure Service
+#### 🧱 SongFormer Structure Service
 
 Song structure segmentation uses SongFormer by default. Start SongFormer separately and expose:
 
@@ -180,7 +180,7 @@ CHORDCRAFT_SONGFORMER_BASE_URL=http://127.0.0.1:8080
 
 The main workflow currently does not fall back to LLM-based structure prompts when SongFormer is unavailable.
 
-#### Chord-Recognition Runtime
+#### 🎹 Chord-Recognition Runtime
 
 The default chord-recognition path follows the pseudo-labeling + selective knowledge-distillation method described in **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
 
@@ -188,7 +188,7 @@ The default chord-recognition path follows the pseudo-labeling + selective knowl
 CHORDCRAFT_ACR_MODEL_DIR=/path/to/pseudo-label-kd-acr-runtime
 ```
 
-#### AI Musician Skills
+#### 🎸 AI Musician Skills
 
 The guitar-arrangement and harmony-chart skills are published as a standalone project. By default, AI-ChordCraft looks for the package next to this repository:
 
@@ -204,7 +204,7 @@ If the skill project lives elsewhere, set:
 CHORDCRAFT_GUITAR_SKILL_DIR=/path/to/AI-Musician-Skills/guitar-arrange-skill
 ```
 
-#### Run the Web App
+#### 🌐 Run the Web App
 
 ```bash
 bash scripts/run_demo.sh
@@ -222,7 +222,7 @@ Voicing annotation workspace:
 http://127.0.0.1:7862/annotator
 ```
 
-### Project Layout
+### 🗂️ Project Layout
 
 ```text
 ChordCraft-Demo/
@@ -249,7 +249,7 @@ AI-Musician-Skills/
   harmony-chart-skill/
 ```
 
-### More Information
+### 🔗 More Information
 
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
 - **MOSS-Audio**: [https://github.com/OpenMOSS/MOSS-Audio](https://github.com/OpenMOSS/MOSS-Audio)
@@ -257,11 +257,11 @@ AI-Musician-Skills/
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
 
-### License Notes
+### 📄 License Notes
 
 Before public release or redistribution, check the licenses of this repository, external model weights, external runtimes, dependencies, and example music separately. Do not redistribute third-party checkpoints or copyrighted songs unless their licenses explicitly allow it.
 
-### Citation
+### 📝 Citation
 
 If you use AI-ChordCraft in your research or application, please cite this project and the upstream models or methods you use:
 
