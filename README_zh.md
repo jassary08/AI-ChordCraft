@@ -23,9 +23,13 @@
   <img src="./assets/ai-chordcraft-overview.png" width="96%" alt="AI-ChordCraft automatic chord transcription overview" />
 </p>
 
+> **说清楚这是什么。** AI-ChordCraft 并不是从零训练的模型，而是一个**编排层**：它把若干开源模型（SongFormer 结构分析、和弦识别模型、外部音乐 LLM）串联起来，在上层加入 agent 推理，把原始模型输出整理成可编辑的、按段落组织的工作文档。**核心价值在于编排本身和 agent 层的推理**，而不是任何单一模型。
+>
+> **本仓库只开源代码，完整 demo 需要 GPU**（LLM 服务、SongFormer 和和弦识别运行时均需显卡）。目前没有公开的在线服务。如果想**不依赖 GPU 立刻上手**，可以使用配套项目 [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills) — 它完成"把这些和弦变成我能弹的编配"这一步。详见 [无 GPU 路径](#-无-gpu-路径)。
+
 ### 📰 新闻
 
-- 🎉 2026.06: AI-ChordCraft 正式开源，一个 LLM 赋能的自动扒谱与交互式和弦谱生成工作台。
+- 🎉 **2026.06:** AI-ChordCraft 正式开源，一个 LLM 赋能的自动扒谱与交互式和弦谱生成工作台。
 
 ### 📚 目录
 
@@ -34,6 +38,7 @@
 - [系统流程](#系统流程)
 - [外部运行时](#外部运行时)
 - [快速开始](#快速开始)
+- [无 GPU 路径](#-无-gpu-路径)
 - [项目结构](#项目结构)
 - [更多信息](#更多信息)
 - [许可证说明](#许可证说明)
@@ -77,7 +82,7 @@ Audio Extraction and Normalization
         |
         +--> SongFormer Structure Segmentation
         |
-        +--> Pseudo-Labeling + KD ACR Chord Recognition
+        +--> ACR Chord Recognition
         |
         +--> External LLM Lyrics ASR and Song Description (full mode)
         |
@@ -127,13 +132,6 @@ bash scripts/prepare_third_party.sh
 
 #### 📦 第三方仓库与 Checkpoint
 
-`third_party/` 只用于放本地运行依赖，并已被 Git 忽略。请分别 clone 上游仓库并下载 checkpoint：
-
-```bash
-git clone https://github.com/OpenMOSS/MOSS-Music.git third_party/MOSS-Music
-git clone https://github.com/ASLP-lab/SongFormer.git third_party/SongFormer
-```
-
 SongFormer 可以按上游说明下载 checkpoint，也可以在 `third_party/SongFormer` 内运行其下载脚本：
 
 ```bash
@@ -142,7 +140,15 @@ python utils/fetch_pretrained.py
 cd ../..
 ```
 
-请从上游项目页面或模型发布页面下载其余所需 checkpoint，并按下面的结构放置：
+辅助脚本会优先通过 ChordMini 运行时的 Git LFS 拉取 ACR checkpoint，并统一放到 `third_party/acr_model/checkpoints/`。如果你有两个 checkpoint 文件的独立下载地址，也可以在运行脚本前设置 URL：
+
+```bash
+CHORDCRAFT_ACR_PL_CHECKPOINT_URL=https://.../btc_combined_best.pth \
+CHORDCRAFT_ACR_SL_CHECKPOINT_URL=https://.../btc_model_large_voca.pt \
+bash scripts/prepare_third_party.sh
+```
+
+最终目录结构如下：
 
 ```text
 third_party/
@@ -153,13 +159,15 @@ third_party/
   SongFormer/
     src/SongFormer/ckpts/SongFormer.safetensors
     src/SongFormer/configs/SongFormer.yaml
-  pseudo_label_kd_acr/
-    btc_chord_recognition.py
-    config/btc_config.yaml
+  ChordMiniApp/                       # ACR 运行时来源
+  acr_model/                          # AI-ChordCraft 使用的 ACR 运行时副本
+    btc_chord_recognition.py          # （由 ChordMini 提供）
+    config/btc_config.yaml            # （由 ChordMini 提供）
     checkpoints/
-      btc/btc_combined_best.pth
-      SL/btc_model_large_voca.pt
+      btc/btc_combined_best.pth       # PL 权重
+      SL/btc_model_large_voca.pt      # SL 权重
 ```
+
 
 如果你把这些组件放在其他位置，不需要移动文件，直接修改 `.env` 中对应路径即可。
 
@@ -189,7 +197,7 @@ bash scripts/start_llm_sglang.sh instruct
 
 脚本会读取 `.env` 中的 `CHORDCRAFT_SGLANG_WORKDIR`、`CHORDCRAFT_SGLANG_THINKING_MODEL_PATH`、`CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH`、端口和 GPU 配置。这个脚本是可选方案；如果使用托管的 OpenAI-compatible 服务，只需要配置上面的 URL、API key 和 model name。
 
-#### 🧱 SongFormer 结构服务
+#### 🧱 SongFormer 结构划分服务
 
 结构切分默认使用 SongFormer。请单独启动 SongFormer 服务，并在 `.env` 中配置服务地址：
 
@@ -227,10 +235,10 @@ SONGFORMER_CONFIG=src/SongFormer/configs/SongFormer.yaml
 和弦识别需要本地自动和弦识别运行时。本项目默认使用论文 **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation** 对应的方法实现，请将模型目录设置为：
 
 ```env
-CHORDCRAFT_ACR_MODEL_DIR=./third_party/pseudo_label_kd_acr
+CHORDCRAFT_ACR_MODEL_DIR=./third_party/acr_model
 ```
 
-该运行时由 AI-ChordCraft 在进程内加载，不需要单独启动 ACR 服务。但目录中必须包含 `btc_chord_recognition.py`、`config/btc_config.yaml` 和上面 `third_party/` 结构中列出的 BTC checkpoint。
+该运行时由 AI-ChordCraft 在进程内加载，不需要单独启动 ACR 服务。但目录中必须包含 `btc_chord_recognition.py`、`config/btc_config.yaml` 和上面 `third_party/` 结构中列出的 BTC checkpoint。`scripts/prepare_third_party.sh` 会把 checkpoint 文件放到 `third_party/acr_model/checkpoints/`。
 
 #### 🌐 启动 Web 应用
 
@@ -243,7 +251,6 @@ bash scripts/run_demo.sh
 ```text
 http://127.0.0.1:7862
 ```
-
 
 ### 🗂️ 项目结构
 
@@ -268,6 +275,7 @@ AI-ChordCraft/
 
 ### 🔗 更多信息
 
+- **AI-Musician-Skills（CPU 配套项目）**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
@@ -283,10 +291,10 @@ AI-ChordCraft/
 ```bibtex
 @misc{aichordcraft2026,
       title={AI-ChordCraft: An LLM-Enhanced Workspace for Automatic Chord Transcription and Music QA},
-      author={AI-ChordCraft Contributors},
+      author={jassary08},
       year={2026},
-      howpublished={GitHub repository},
-      note={Web application}
+      howpublished={\url{https://github.com/jassary08/AI-ChordCraft}},
+      note={Open-source software project; no associated paper}
 }
 ```
 

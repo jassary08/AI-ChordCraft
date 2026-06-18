@@ -1212,7 +1212,7 @@ def _default_plkd_acr_dir() -> Path:
     configured = os.environ.get("CHORDCRAFT_ACR_MODEL_DIR") or os.environ.get("CHORDCRAFT_PLKD_ACR_DIR")
     if configured:
         return Path(configured).expanduser().resolve()
-    return Path(__file__).resolve().parents[1] / "third_party" / "pseudo_label_kd_acr"
+    return Path(__file__).resolve().parents[1] / "third_party" / "acr_model"
 
 
 def _plkd_acr_checkpoint_path(model_dir: Path, model_variant: str) -> Path:

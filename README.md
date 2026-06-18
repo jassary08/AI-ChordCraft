@@ -23,9 +23,23 @@
   <img src="./assets/ai-chordcraft-overview.png" width="96%" alt="AI-ChordCraft automatic chord transcription overview" />
 </p>
 
+> **What this is, honestly.** AI-ChordCraft is not a from-scratch model. It is an
+> **orchestration layer**: it wires together strong open-source models
+> (SongFormer for structure, a pseudo-labeling + KD chord-recognition model, and
+> an external music LLM) and adds an agent layer that turns their raw outputs
+> into an editable, section-aware working document. The value is in the
+> **orchestration and the agent reasoning on top**, not in any single model.
+>
+> **This repository is code only, and the full demo needs a GPU** (for the LLM
+> service, SongFormer, and the chord-recognition runtime). There is no hosted
+> instance. If you want something you can run **today with no GPU**, use the
+> [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills) project —
+> it does the "make these chords playable for me" part entirely on CPU. See
+> [No-GPU path](#-no-gpu-path) below.
+
 ### 📰 News
 
-- 🎉 2026.06: Released AI-ChordCraft, an LLM-enhanced workspace for automatic chord transcription and interactive chord-sheet generation.
+- 🎉 **2026.06:** Released AI-ChordCraft, an LLM-enhanced workspace for automatic chord transcription and interactive chord-sheet generation.
 
 ### 📚 Contents
 
@@ -34,6 +48,7 @@
 - [Workflow](#workflow)
 - [External Runtimes](#external-runtimes)
 - [Quickstart](#quickstart)
+- [No-GPU Path](#-no-gpu-path)
 - [Project Layout](#project-layout)
 - [More Information](#more-information)
 - [License Notes](#license-notes)
@@ -126,12 +141,17 @@ bash scripts/prepare_third_party.sh
 
 #### 📦 Third-Party Repositories and Checkpoints
 
-`third_party/` only stores local runtime dependencies and is ignored by Git. Clone upstream repositories and download checkpoints separately:
+`third_party/` only stores local runtime dependencies and is ignored by Git. The `prepare_third_party.sh` script above already clones the public upstream repositories (MOSS-Music, SongFormer, and ChordMiniApp for the ACR runtime), initializes the ChordMini submodule, syncs the ACR runtime into `acr_model/`, and tries to fetch SongFormer's checkpoints. To do it manually instead, or to refresh existing clones:
 
 ```bash
 git clone https://github.com/OpenMOSS/MOSS-Music.git third_party/MOSS-Music
 git clone https://github.com/ASLP-lab/SongFormer.git third_party/SongFormer
+git clone https://github.com/ptnghia-j/ChordMiniApp.git third_party/ChordMiniApp
+# refresh existing clones via the helper script
+bash scripts/prepare_third_party.sh --update
 ```
+
+The ACR (automatic chord recognition) runtime is synced from ChordMiniApp's pinned `ChordMini` submodule into `third_party/acr_model`. If you already have a ChordMiniApp checkout elsewhere, reuse it with `CHORDCRAFT_CHORDMINIAPP_DIR=/path/to/ChordMiniApp bash scripts/prepare_third_party.sh`.
 
 For SongFormer, follow the upstream instructions or run its checkpoint fetch script from inside `third_party/SongFormer`:
 
@@ -141,7 +161,15 @@ python utils/fetch_pretrained.py
 cd ../..
 ```
 
-Download the remaining required checkpoints from the upstream project pages or model release pages, then place them in this layout:
+The helper script tries to fetch ACR checkpoints with Git LFS from the ChordMini runtime and normalizes them into `third_party/acr_model/checkpoints/`. If you host the two checkpoint files elsewhere, set direct URLs before running the script:
+
+```bash
+CHORDCRAFT_ACR_PL_CHECKPOINT_URL=https://.../btc_combined_best.pth \
+CHORDCRAFT_ACR_SL_CHECKPOINT_URL=https://.../btc_model_large_voca.pt \
+bash scripts/prepare_third_party.sh
+```
+
+The resulting layout is:
 
 ```text
 third_party/
@@ -152,13 +180,15 @@ third_party/
   SongFormer/
     src/SongFormer/ckpts/SongFormer.safetensors
     src/SongFormer/configs/SongFormer.yaml
-  pseudo_label_kd_acr/
-    btc_chord_recognition.py
-    config/btc_config.yaml
+  ChordMiniApp/                       # source of the ACR runtime
+  acr_model/                          # synced ACR runtime used by AI-ChordCraft
+    btc_chord_recognition.py          # (provided by ChordMini)
+    config/btc_config.yaml            # (provided by ChordMini)
     checkpoints/
-      btc/btc_combined_best.pth
-      SL/btc_model_large_voca.pt
+      btc/btc_combined_best.pth       # PL weights
+      SL/btc_model_large_voca.pt      # SL weights
 ```
+
 
 If you use a different location, update `.env` instead of moving the files.
 
@@ -225,10 +255,10 @@ SONGFORMER_CONFIG=src/SongFormer/configs/SongFormer.yaml
 Chord recognition requires a local automatic chord-recognition runtime. By default, this project connects to the method implementation associated with **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
 
 ```env
-CHORDCRAFT_ACR_MODEL_DIR=./third_party/pseudo_label_kd_acr
+CHORDCRAFT_ACR_MODEL_DIR=./third_party/acr_model
 ```
 
-This runtime is loaded in-process by AI-ChordCraft. No separate ACR service is required, but the runtime directory must contain `btc_chord_recognition.py`, `config/btc_config.yaml`, and the BTC checkpoints shown in the `third_party/` layout above.
+This runtime is loaded in-process by AI-ChordCraft. No separate ACR service is required, but the runtime directory must contain `btc_chord_recognition.py`, `config/btc_config.yaml`, and the BTC checkpoints shown in the `third_party/` layout above. `scripts/prepare_third_party.sh` places checkpoint files under `third_party/acr_model/checkpoints/`.
 
 #### 🌐 Run the Web App
 
@@ -241,6 +271,66 @@ Open:
 ```text
 http://127.0.0.1:7862
 ```
+
+### 🪶 No-GPU Path
+
+The full audio pipeline needs a GPU, but the most useful part for a player —
+**analyzing a progression and turning it into a playable guitar arrangement** —
+runs on CPU through the companion project
+[AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills):
+
+```bash
+git clone https://github.com/jassary08/AI-Musician-Skills
+cd AI-Musician-Skills
+
+# Analyze a progression (Roman numerals, functions, cadences)
+python harmony-chart-skill/scripts/analyze_harmony.py \
+  --input-json '{"key":"C major","progression":"1645","output_html":true}' --pretty
+
+# Turn chords into a beginner-friendly, capo-aware guitar arrangement
+python guitar-arrange-skill/scripts/arrange_guitar.py \
+  --input-json '{"task":"guitar_arrange","key":"A major","style":"pop","user_level":"beginner","chords":["A","E","F#m","D"]}' --pretty
+```
+
+No model weights, no GPU, no audio required. This is also what AI-ChordCraft
+calls internally for its guitar arrangement and follow-up "how do I play this"
+questions.
+
+### 🛠️ Annotator (developer tool)
+
+`frontend/annotator.html` (`/annotator`, backed by `/api/voicing-*`) is a
+**developer-facing data tool** for rating and curating guitar voicings, not part
+of the end-user transcription flow. It depends on the voicing database shipped
+in the sibling [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
+project (resolved via `CHORDCRAFT_GUITAR_SKILL_DIR`); without it, the voicing
+endpoints return empty.
+
+### 🎚️ Arrangement API (`/api/arrange`)
+
+The agent-assisted **arrangement** workflow — the part that reasons about how to
+re-voice a transcribed song for specific instruments, style, and difficulty — is
+exposed as a JSON API rather than a button in the main UI. It takes an existing
+analysis plus arrangement preferences and returns an instrument-aware
+arrangement:
+
+```bash
+curl -X POST http://127.0.0.1:7862/api/arrange \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filename": "song.mp3",
+    "audio_base64": "<base64 audio>",
+    "analysis": { ... output from /api/analyze ... },
+    "instruments": ["guitar", "piano", "bass"],
+    "style": "原曲风格",
+    "difficulty": "intermediate",
+    "density": "medium",
+    "purpose": "伴奏"
+  }'
+```
+
+Like `/api/analyze`, it requires the LLM service (GPU). For CPU-only guitar
+arrangement, use [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
+instead.
 
 ### 🗂️ Project Layout
 
@@ -265,6 +355,7 @@ AI-ChordCraft/
 
 ### 🔗 More Information
 
+- **AI-Musician-Skills (CPU companion)**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
@@ -280,10 +371,10 @@ If you use AI-ChordCraft in your research or application, please cite this proje
 ```bibtex
 @misc{aichordcraft2026,
       title={AI-ChordCraft: An LLM-Enhanced Workspace for Automatic Chord Transcription and Music QA},
-      author={AI-ChordCraft Contributors},
+      author={jassary08},
       year={2026},
-      howpublished={GitHub repository},
-      note={Web application}
+      howpublished={\url{https://github.com/jassary08/AI-ChordCraft}},
+      note={Open-source software project; no associated paper}
 }
 ```
 
