@@ -109,6 +109,15 @@ is_lfs_pointer() {
   [ -f "$path" ] && head -c 80 "$path" | grep -q "version https://git-lfs.github.com/spec"
 }
 
+is_git_worktree() {
+  local path="$1"
+  git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+has_git_lfs() {
+  git lfs version >/dev/null 2>&1
+}
+
 install_checkpoint_alias() {
   local source="$1" target="$2"
   if [ ! -f "$source" ] || is_lfs_pointer "$source"; then
@@ -130,13 +139,13 @@ fetch_acr_checkpoints() {
   mkdir -p "$acr_root/checkpoints/btc" "$acr_root/checkpoints/SL"
 
   if [ "$SKIP_ACR_CKPT" -eq 0 ]; then
-    if [ -d "$source_root/.git" ] && command -v git-lfs >/dev/null 2>&1; then
+    if is_git_worktree "$source_root" && has_git_lfs; then
       echo ">> fetching ChordMini ACR checkpoints with Git LFS"
       git -C "$source_root" lfs install --local >/dev/null 2>&1 || true
       git -C "$source_root" lfs pull --include="checkpoints/**" \
         || echo "   (Git LFS checkpoint fetch failed; continuing)"
-    elif [ -d "$source_root/.git" ]; then
-      echo "   (git-lfs not found; install Git LFS or provide direct checkpoint URLs)"
+    elif is_git_worktree "$source_root"; then
+      echo "   (Git LFS is not available; install Git LFS or provide direct checkpoint URLs)"
     fi
 
     download_file "${CHORDCRAFT_ACR_PL_CHECKPOINT_URL:-}" "$pl_target" \
