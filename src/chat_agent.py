@@ -67,9 +67,9 @@ def validate_chat_messages(messages: Any) -> list[dict[str, str]]:
 
 def normalize_model_mode(model_mode: str | None) -> str:
     resolved = (model_mode or "instruct").strip().lower()
-    if resolved not in {"thinking", "instruct"}:
-        raise ValueError("model_mode must be either thinking or instruct.")
-    return resolved
+    if resolved in {"thinking", "instruct"}:
+        return resolved
+    return "instruct"
 
 
 def compact_chords(chords: Any, limit: int = 16) -> list[dict[str, Any]]:
@@ -228,6 +228,7 @@ def run_chat_agent(
     selected_sections: list[dict[str, Any]],
     messages: list[Any],
     model_mode: str = "instruct",
+    base_url: str | None = None,
     thinking_base_url: str | None = None,
     instruct_base_url: str | None = None,
     arrangement: dict[str, Any] | None = None,
@@ -238,7 +239,7 @@ def run_chat_agent(
 ) -> ChatAgentResult:
     started_at = time.perf_counter()
     resolved_mode = normalize_model_mode(model_mode)
-    base_url = thinking_base_url if resolved_mode == "thinking" else instruct_base_url
+    resolved_base_url = base_url or instruct_base_url or thinking_base_url
     prompt = build_chat_prompt(
         filename=filename,
         analysis=analysis,
@@ -249,7 +250,7 @@ def run_chat_agent(
     raw_text = generate_with_sglang(
         audio_path=audio_path,
         prompt=prompt,
-        base_url=base_url,
+        base_url=resolved_base_url,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
         top_p=top_p,

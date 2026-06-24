@@ -5,6 +5,7 @@ __pycache__/
 venv/
 outputs/
 uploads/
+logs/
 *.log
 .DS_Store
 

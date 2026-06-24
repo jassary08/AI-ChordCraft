@@ -77,7 +77,6 @@ function networkErrorMessage(error, path) {
 }
 
 const CHAT_DEFAULTS = {
-  thinking_base_url: null,
   instruct_base_url: null,
   max_new_tokens: 2048,
   temperature: 0.2,
@@ -204,8 +203,9 @@ async function drawWaveformFromFile(file) {
   const height = waveform.height;
   drawEmptyWaveform();
 
+  let audioContext = null;
   try {
-    const audioContext = new AudioContext();
+    audioContext = new AudioContext();
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
     const channel = audioBuffer.getChannelData(0);
@@ -233,6 +233,9 @@ async function drawWaveformFromFile(file) {
     }
     await audioContext.close();
   } catch {
+    if (audioContext) {
+      await audioContext.close().catch(() => {});
+    }
     drawEmptyWaveform();
   }
 }
@@ -443,6 +446,11 @@ function compactSectionForChat(section, chordLimit = 16, lyricLimit = 4) {
     parent_name: section.parent_name || null,
     start: section.start ?? null,
     end: section.end ?? null,
+    // Preserve the precise float seconds computed in buildSelectedSegmentPayload
+    // so the backend slices audio accurately instead of falling back to the
+    // less-precise display strings.
+    start_seconds: section.start_seconds ?? null,
+    end_seconds: section.end_seconds ?? null,
     chords: simplifyChords(section.chords, chordLimit),
     lyrics: simplifyLyrics(section.lyrics, lyricLimit),
   };
@@ -544,8 +552,9 @@ function selectedSegmentPayloads() {
   return Array.from(selectedSegments.values());
 }
 
-function renderChildSection(section, sectionLyrics, segmentId, parentName) {
+function renderChildSection(section, sectionLyrics, segmentId, parentName, fallbackChords = []) {
   const bounds = intervalBounds(section);
+  const chords = Array.isArray(section.chords) && section.chords.length ? section.chords : fallbackChords;
   return `
     <div class="child-section">
       <div class="child-meta">
@@ -559,7 +568,7 @@ function renderChildSection(section, sectionLyrics, segmentId, parentName) {
         </div>
       </div>
       <div class="notation-panel">
-        <div class="chord-grid">${renderChordGrid(section.chords)}</div>
+        <div class="chord-grid">${renderChordGrid(chords)}</div>
         ${renderSectionLyrics(sectionLyrics)}
       </div>
     </div>
@@ -632,7 +641,7 @@ function renderSongSections(sections, lyrics) {
         buildSelectedSegmentPayload(childId, child, "child", childLyrics, section.name || ""),
       );
       childOffset += 1;
-      return renderChildSection(child, childLyrics, childId, section.name || "");
+      return renderChildSection(child, childLyrics, childId, section.name || "", section.chords || []);
     }).join("");
     const sectionLyrics = lyricBuckets
       .slice(sectionStartOffset, sectionStartOffset + childSections.length)
@@ -666,6 +675,9 @@ function renderChart(analysis, sourceName) {
   const overall = analysis.overall || {};
   const sections = Array.isArray(analysis.sections) ? analysis.sections.filter((section) => section && typeof section === "object") : [];
   const lyrics = Array.isArray(analysis.lyrics_segments) ? analysis.lyrics_segments : [];
+  const warnings = Array.isArray(analysis.uncertain_points)
+    ? analysis.uncertain_points.filter((item) => item !== null && item !== undefined && String(item).trim())
+    : [];
   const title = analysis.title_guess || sourceName || "未命名歌曲";
   availableSegments = new Map();
 
@@ -686,6 +698,15 @@ function renderChart(analysis, sourceName) {
         ${metricCard("调式", overall.mode)}
         ${metricCard("速度", overall.tempo_bpm, " BPM")}
       </div>
+
+      ${warnings.length ? `
+        <section class="analysis-warning-panel" aria-label="分析提示">
+          <strong>分析提示</strong>
+          <ul>
+            ${warnings.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+          </ul>
+        </section>
+      ` : ""}
 
       ${renderSongMap(sections)}
 
@@ -925,6 +946,8 @@ async function submitAnalysis(event) {
     setChatEnabled(true);
     setStatus(`完成 / ${Number(result.elapsed_seconds || 0).toFixed(2)}s`);
   } catch (error) {
+    lastResult = null;
+    setChatEnabled(false);
     showError(networkErrorMessage(error, "/api/analyze"));
     setStatus("错误", "error");
   } finally {
@@ -942,13 +965,12 @@ async function submitChat(event) {
   const message = String(chatMessageInput.value || "").trim();
   if (!message) return;
 
-  const modeInput = chatForm.querySelector('input[name="model_mode"]:checked');
-  const modelMode = modeInput ? modeInput.value : "instruct";
+  const modelMode = "instruct";
   chatMessages.push({ role: "user", content: message });
   chatMessageInput.value = "";
   syncChatFeed();
   chatSubmit.disabled = true;
-  setStatus(modelMode === "thinking" ? "Thinking 模型回答中" : "Instruct 模型回答中", "busy");
+  setStatus("模型回答中", "busy");
 
   try {
     const file = fileInput.files[0];
@@ -979,6 +1001,11 @@ async function submitChat(event) {
     syncChatFeed();
     setStatus(`追问完成 / ${Number(result.elapsed_seconds || 0).toFixed(2)}s`);
   } catch (error) {
+    // Roll the failed user turn out of history so it is not silently resent
+    // as context on the next attempt; show the error in the feed instead.
+    if (chatMessages.length && chatMessages[chatMessages.length - 1].role === "user") {
+      chatMessages.pop();
+    }
     chatMessages.push({ role: "assistant", content: `追问失败：${networkErrorMessage(error, "/api/chat")}` });
     syncChatFeed();
     setStatus("追问错误", "error");

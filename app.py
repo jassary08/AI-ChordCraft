@@ -53,7 +53,7 @@ DEFAULT_SGLANG_THINKING_BASE_URL = os.environ.get(
 )
 DEFAULT_SGLANG_INSTRUCT_BASE_URL = os.environ.get(
     "CHORDCRAFT_SGLANG_INSTRUCT_BASE_URL",
-    os.environ.get("MOSS_MUSIC_SGLANG_INSTRUCT_BASE_URL", "http://127.0.0.1:30001"),
+    os.environ.get("MOSS_MUSIC_SGLANG_INSTRUCT_BASE_URL", DEFAULT_SGLANG_BASE_URL),
 )
 DEFAULT_SGLANG_MODEL_NAME = (
     os.environ.get("CHORDCRAFT_SGLANG_MODEL_NAME")
@@ -92,7 +92,7 @@ class ArrangeRequest(BaseModel):
     density: str = "medium"
     purpose: str = "伴奏"
     backend: str = DEFAULT_BACKEND
-    base_url: str | None = DEFAULT_SGLANG_INSTRUCT_BASE_URL
+    base_url: str | None = DEFAULT_SGLANG_BASE_URL
     model_path: str | None = DEFAULT_SGLANG_MODEL_NAME
     max_new_tokens: int = 3072
     temperature: float = 0.2
@@ -115,7 +115,7 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(default_factory=list)
     model_mode: str = "instruct"
     thinking_base_url: str | None = DEFAULT_SGLANG_THINKING_BASE_URL
-    instruct_base_url: str | None = DEFAULT_SGLANG_INSTRUCT_BASE_URL
+    instruct_base_url: str | None = DEFAULT_SGLANG_BASE_URL
     max_new_tokens: int = 2048
     temperature: float = 0.2
     top_p: float = 0.9
@@ -589,8 +589,9 @@ def chat(request: ChatRequest) -> JSONResponse:
                 selected_sections=request.selected_sections,
                 messages=request.messages,
                 model_mode=request.model_mode,
-                thinking_base_url=request.thinking_base_url or DEFAULT_SGLANG_THINKING_BASE_URL,
-                instruct_base_url=request.instruct_base_url or DEFAULT_SGLANG_INSTRUCT_BASE_URL,
+                base_url=request.instruct_base_url
+                or request.thinking_base_url
+                or DEFAULT_SGLANG_BASE_URL,
                 max_new_tokens=request.max_new_tokens,
                 temperature=request.temperature,
                 top_p=request.top_p,

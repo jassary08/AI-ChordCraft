@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import re
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from src._runtime import (
+    DEFAULT_OVERALL_AUDIO_WINDOW_SECONDS,
     ModelJSONParseError,
     format_timestamp_precise,
     generate_text,
     normalize_timestamp_precise,
     parse_analysis_json,
     parse_timestamp_float,
+    probe_audio_duration,
+    slice_audio,
     strip_thinking_text,
 )
 
@@ -19,6 +24,8 @@ from src._runtime import (
 LYRIC_ASR_PROMPT = """
 转录出这首歌的带时间戳的歌词
 """
+
+LYRIC_ASR_WINDOW_SECONDS = DEFAULT_OVERALL_AUDIO_WINDOW_SECONDS
 
 
 def coerce_lyrics_segments(value: Any) -> list[dict[str, Any]]:
@@ -128,6 +135,72 @@ def dedupe_lyrics_segments(segments: list[dict[str, Any]]) -> list[dict[str, Any
     return deduped
 
 
+def _iter_lyric_windows(duration_seconds: int | float | None) -> list[tuple[float, float]]:
+    if not isinstance(duration_seconds, (int, float)) or duration_seconds <= 0:
+        return [(0.0, float(LYRIC_ASR_WINDOW_SECONDS))]
+
+    windows: list[tuple[float, float]] = []
+    start = 0.0
+    duration = float(duration_seconds)
+    while start < duration:
+        end = min(duration, start + float(LYRIC_ASR_WINDOW_SECONDS))
+        if end > start:
+            windows.append((start, end))
+        start = end
+    return windows or [(0.0, min(duration, float(LYRIC_ASR_WINDOW_SECONDS)))]
+
+
+def _offset_lyrics_to_song_timeline(
+    segments: list[dict[str, Any]],
+    window_start_seconds: float,
+    window_end_seconds: float,
+) -> list[dict[str, Any]]:
+    adjusted: list[dict[str, Any]] = []
+    tolerance = 1.0
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        text = str(segment.get("text") or "").strip()
+        if not text:
+            continue
+
+        start_seconds = parse_timestamp_float(segment.get("start_seconds"))
+        end_seconds = parse_timestamp_float(segment.get("end_seconds"))
+        if start_seconds is None:
+            start_seconds = parse_timestamp_float(segment.get("start"))
+        if end_seconds is None:
+            end_seconds = parse_timestamp_float(segment.get("end"))
+        if start_seconds is None:
+            continue
+
+        # Most windowed ASR outputs timestamps relative to the sliced audio.
+        # If the model already returns full-song timestamps inside this window,
+        # keep them as-is instead of adding the offset twice.
+        looks_absolute = (
+            window_start_seconds > 0
+            and start_seconds >= window_start_seconds - tolerance
+            and start_seconds <= window_end_seconds + tolerance
+        )
+        absolute_start = start_seconds if looks_absolute else start_seconds + window_start_seconds
+        if end_seconds is None:
+            absolute_end = absolute_start + 1.0
+        else:
+            absolute_end = end_seconds if looks_absolute else end_seconds + window_start_seconds
+        if absolute_end <= absolute_start:
+            absolute_end = absolute_start + 1.0
+
+        adjusted.append(
+            {
+                "start": format_timestamp_precise(absolute_start),
+                "end": format_timestamp_precise(absolute_end),
+                "start_seconds": absolute_start,
+                "end_seconds": absolute_end,
+                "text": text,
+            }
+        )
+    return adjusted
+
+
 def analyze_full_song_lyrics_with_llm(
     audio_path: str,
     raw_steps: dict[str, Any],
@@ -142,27 +215,64 @@ def analyze_full_song_lyrics_with_llm(
     top_k: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     warnings: list[str] = []
-    step: dict[str, Any] = {"audio": "full_song"}
-    lyric_raw = generate_text(
-        audio_path=audio_path,
-        prompt=LYRIC_ASR_PROMPT,
-        backend=backend,
-        base_url=task_base_urls["lyric_asr"],
-        api_key=api_key,
-        model_name_or_path=model_name_or_path,
-        device=device,
-        max_new_tokens=lyric_tokens,
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-    )
-    step["raw"] = lyric_raw
-    raw_steps.setdefault("lyric_asr", []).append(step)
+    duration_seconds = probe_audio_duration(audio_path)
+    windows = _iter_lyric_windows(duration_seconds)
+    merged_segments: list[dict[str, Any]] = []
 
-    lyrics_segments = parse_lyric_asr_text(lyric_raw)
-    if not lyrics_segments:
-        warning = "整首歌词 ASR 没有返回可解析的带时间戳歌词行。"
-        step["parse_error"] = warning
-        warnings.append(warning)
+    with tempfile.TemporaryDirectory(prefix="moss-lyrics-") as temp_dir:
+        for index, (window_start, window_end) in enumerate(windows, start=1):
+            step: dict[str, Any] = {
+                "audio": "sliced_window" if len(windows) > 1 else "full_song",
+                "window_index": index,
+                "window_count": len(windows),
+                "start_seconds": window_start,
+                "end_seconds": window_end,
+            }
+            window_audio_path = audio_path
+            if len(windows) > 1:
+                window_audio_path = str(Path(temp_dir) / f"lyrics-window-{index:03d}.wav")
+                try:
+                    slice_audio(audio_path, window_audio_path, window_start, window_end)
+                except RuntimeError as exc:
+                    warning = (
+                        f"歌词 ASR 第 {index}/{len(windows)} 个 90 秒窗口切分失败，已跳过：{exc}"
+                    )
+                    step["error"] = str(exc)
+                    step["parse_error"] = warning
+                    warnings.append(warning)
+                    raw_steps.setdefault("lyric_asr", []).append(step)
+                    continue
 
-    return dedupe_lyrics_segments(lyrics_segments), warnings
+            lyric_raw = generate_text(
+                audio_path=window_audio_path,
+                prompt=LYRIC_ASR_PROMPT,
+                backend=backend,
+                base_url=task_base_urls["lyric_asr"],
+                api_key=api_key,
+                model_name_or_path=model_name_or_path,
+                device=device,
+                max_new_tokens=lyric_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+            )
+            step["raw"] = lyric_raw
+            raw_steps.setdefault("lyric_asr", []).append(step)
+
+            window_segments = parse_lyric_asr_text(lyric_raw)
+            if not window_segments:
+                warning = (
+                    f"歌词 ASR 第 {index}/{len(windows)} 个 90 秒窗口没有返回可解析的带时间戳歌词行。"
+                )
+                step["parse_error"] = warning
+                warnings.append(warning)
+                continue
+            merged_segments.extend(
+                _offset_lyrics_to_song_timeline(
+                    window_segments,
+                    window_start_seconds=window_start,
+                    window_end_seconds=window_end,
+                )
+            )
+
+    return dedupe_lyrics_segments(merged_segments), warnings

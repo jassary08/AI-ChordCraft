@@ -57,16 +57,6 @@
         </div>
         <div class="chat-feed" id="chat-feed" aria-live="polite"></div>
         <form class="chat-form" id="chat-form">
-          <div class="model-switch" role="radiogroup" aria-label="模型选择">
-            <label>
-              <input type="radio" name="model_mode" value="instruct" checked />
-              <span>Instruct</span>
-            </label>
-            <label>
-              <input type="radio" name="model_mode" value="thinking" />
-              <span>Thinking</span>
-            </label>
-          </div>
           <textarea id="chat-message" name="message" rows="4" placeholder="生成和弦谱后，可以继续问：副歌怎么改成钢琴弹唱？这段适合什么节奏型？"></textarea>
           <button class="secondary-button" id="chat-submit" type="submit" disabled>发送追问</button>
         </form>

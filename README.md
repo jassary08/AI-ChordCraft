@@ -14,74 +14,59 @@
 </div>
 
 <p align="center">
-  <a href="./README.md">English</a> | <a href="./README_zh.md">简体中文</a>
+  <a href="./README.md">简体中文</a> | <a href="./README_en.md">English</a>
 </p>
 
-**AI-ChordCraft** is an **LLM-enhanced automatic chord-transcription and lead-sheet workspace** for musicians and music-understanding research. It accepts an audio or video upload, extracts the audio, combines song-structure segmentation, key / tempo estimation, chord recognition, lyrics ASR, and large-model music understanding, then renders an interactive chord sheet that can be played, inspected, selected by section, and used as context for follow-up music QA.
+**AI-ChordCraft** 是一个 **LLM 赋能的自动扒谱工作台**。它接收一段音频或视频，自动抽取音频，并将歌曲结构划分、调性速度估计、和弦识别、歌词 ASR 与大模型音乐理解整合到同一条流程中，最终在网页中生成和弦谱。
 
 <p align="center">
   <img src="./assets/ai-chordcraft-overview.png" width="96%" alt="AI-ChordCraft automatic chord transcription overview" />
 </p>
 
-> **What this is, honestly.** AI-ChordCraft is not a from-scratch model. It is an
-> **orchestration layer**: it wires together strong open-source models
-> (SongFormer for structure, a pseudo-labeling + KD chord-recognition model, and
-> an external music LLM) and adds an agent layer that turns their raw outputs
-> into an editable, section-aware working document. The value is in the
-> **orchestration and the agent reasoning on top**, not in any single model.
->
-> **This repository is code only, and the full demo needs a GPU** (for the LLM
-> service, SongFormer, and the chord-recognition runtime). There is no hosted
-> instance. If you want something you can run **today with no GPU**, use the
-> [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills) project —
-> it does the "make these chords playable for me" part entirely on CPU. See
-> [No-GPU path](#-no-gpu-path) below.
 
-### 📰 News
 
-- 🎉 **2026.06:** Released AI-ChordCraft, an LLM-enhanced workspace for automatic chord transcription and interactive chord-sheet generation.
+### 📰 新闻
 
-### 📚 Contents
+- 🎉 **2026.06:** AI-ChordCraft 正式开源，一个 LLM 赋能的自动扒谱与交互式和弦谱生成工作台。
 
-- [Introduction](#introduction)
-- [Features](#features)
-- [Workflow](#workflow)
-- [External Runtimes](#external-runtimes)
-- [Quickstart](#quickstart)
-- [No-GPU Path](#-no-gpu-path)
-- [Project Layout](#project-layout)
-- [More Information](#more-information)
-- [License Notes](#license-notes)
-- [Citation](#citation)
+### 📚 目录
 
-### 🎼 Introduction
+- [介绍](#介绍)
+- [主要功能](#主要功能)
+- [系统流程](#系统流程)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [更多信息](#更多信息)
+- [许可证说明](#许可证说明)
+- [引用](#引用)
+- [English](./README_en.md)
 
-AI-ChordCraft is designed to use LLMs to strengthen the traditional automatic transcription workflow. It produces more than a flat chord list: structure, harmony, lyrics, key, tempo, section boundaries, and playable timestamps are organized into a practical working document for performance, review, arrangement, and discussion. Users can inspect sections, play local audio regions, ask follow-up questions about transcription decisions, and pass the result to downstream arrangement tools.
+### 🎼 介绍
 
-Compared with single-purpose MIR recognition tools, AI-ChordCraft focuses on a full **recognition + explanation + interaction + arrangement** loop:
+AI-ChordCraft 的核心目标是用 LLM 增强传统自动扒谱流程：系统不只输出和弦进行，而是把结构、和声、歌词、调性、速度、段落边界和可播放时间轴组织成一份面向演奏和讨论的工作材料。用户可以从一首歌直接得到结构化和弦谱，检查每个段落，播放局部片段，选择段落继续跟大模型聊天，获得音乐编曲上的指导。
 
-- 🎧 **Recognition**: extract structure, chords, key, tempo, and lyrics from audio or video.
-- 🧠 **Explanation**: use an external LLM to describe sections, harmonic motion, overall style, and uncertain points in natural language.
-- 💬 **Interaction**: select any section and ask why a chord appears, how a chorus can be reharmonized, or how to adapt it for guitar.
+相比只做单点 MIR 识别的工具，AI-ChordCraft 更强调 **识别 + 解释 + 交互 + 编配** 的闭环：
 
-The current automatic transcription pipeline integrates three groups of capabilities:
+- 🎧 **识别**：从音频或视频中提取结构、和弦、调性、速度和歌词等核心扒谱信息。
+- 🧠 **解释**：使用外部 LLM 对段落、和声走向、整体风格和可疑点进行自然语言解释。
+- 💬 **交互**：用户可以选中任意段落，继续询问“这里为什么是这个和弦”“副歌能否改成更适合吉他的进行”等问题。
 
-- 🧱 **Music structure analysis**: SongFormer segments a full track into section labels such as intro, verse, chorus, bridge, and outro with time boundaries.
-- 🎹 **Automatic chord recognition**: a high-accuracy chord-recognition model outputs timestamped chord events, which are aligned to song sections.
-- 🧠 **LLM music understanding and reasoning**: an external compatible LLM service adds lyrics ASR, full-track description, section-level explanation, music QA, and arrangement-oriented reasoning, turning raw recognition outputs into editable musical material. MOSS-Music is recommended, but other compatible services can also be used.
+当前自动扒谱流程整合了三类能力：
 
-### ✨ Features
+- 🧱 **音乐结构分析**：调用 SongFormer 对完整歌曲进行段落切分，输出 intro / verse / chorus / bridge / outro 等结构标签和时间边界。
+- 🎹 **自动和弦识别**：使用高精度和弦识别模型输出带时间戳的和弦事件，并自动映射到歌曲段落中。
+- 🧠 **LLM 音乐理解与推理**：通过兼容接口接入外部 LLM 服务，补充歌词 ASR、整体音乐描述、段落级解释、音乐问答与编配相关推理，让扒谱结果从“识别结果”升级为可交流、可修改的音乐材料。推荐使用 MOSS-Music，也可以接入其他兼容服务。
 
-- 📤 **Browser upload for audio and video**: common audio and video formats are supported; video files are converted to audio before analysis.
-- ✨ **LLM-enhanced automatic transcription**: audio / video is converted into a usable lead sheet with structure, chords, lyrics, key, tempo, and explanatory context.
-- 🎼 **Section-aware chord-sheet generation**: sections display chords, timestamps, lyrics, key, tempo, and overall metadata.
-- ▶️ **Timeline and section playback**: users can play the full track or jump to individual sections for manual review.
-- 💬 **Section selection and music QA**: selected sections can be used as context for questions about harmony, transcription rationale, arrangement, practice, and adaptation.
-- ⚙️ **Two analysis modes**: `core` runs the structure and chord pipeline; `full` also runs lyrics ASR and overall song description.
+### ✨ 主要功能
 
-### 🔄 Workflow
+- 📤 **Web 上传音频 / 视频**：支持常见音频和视频格式，视频会先抽取音频再进入分析流程。
+- 🎼 **结构化和弦谱生成**：按歌曲段落展示和弦、时间点、歌词、调性、速度和整体信息。
+- ▶️ **时间轴播放与段落播放**：可以播放整首音频，也可以跳转播放单个段落，便于人工复核。
+- 💬 **LLM 赋能的音乐问答**：用户可以选择若干段落，继续询问和声走向、扒谱依据、编配、练习或改编问题。
 
-AI-ChordCraft connects audio-analysis modules and LLM reasoning modules into a transcription-oriented workflow:
+### 🔄 系统流程
+
+AI-ChordCraft 将传统音频分析模块与 LLM 推理模块串成一条面向扒谱的工作流：
 
 ```text
 Audio / Video Upload
@@ -91,7 +76,7 @@ Audio Extraction and Normalization
         |
         +--> SongFormer Structure Segmentation
         |
-        +--> Pseudo-Labeling + KD ACR Chord Recognition
+        +--> ACR Chord Recognition
         |
         +--> External LLM Lyrics ASR and Song Description (full mode)
         |
@@ -102,28 +87,9 @@ Section Alignment and Chord-Sheet Rendering
 Interactive Browser UI + Music QA + Arrangement Tools
 ```
 
-Default web workflow:
+### 🚀 快速开始
 
-- `structure_engine=songformer`
-- `chord_engine=plkd-btc`
-- `analysis_mode=core`
-- `backend=sglang`
-
-`core` mode skips lyrics ASR and the overall song description for faster chord-sheet generation. `full` mode requires an external LLM service and is intended for lyrics, full-track description, and richer chat context.
-
-### 🧩 External Runtimes
-
-This repository does not include:
-
-- External LLM / audio-language-model service and model weights.
-- SongFormer model weights or structure-analysis service.
-- Automatic chord-recognition model weights or runtime.
-
-Keep these components outside this repository and connect them through environment variables.
-
-### 🚀 Quickstart
-
-#### ⚙️ Environment Setup
+#### ⚙️ 环境配置
 
 ```bash
 cd AI-ChordCraft
@@ -133,43 +99,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Prepare the local third-party runtime layout:
+准备本地第三方运行时目录：
 
 ```bash
 bash scripts/prepare_third_party.sh
 ```
 
-#### 📦 Third-Party Repositories and Checkpoints
-
-`third_party/` only stores local runtime dependencies and is ignored by Git. The `prepare_third_party.sh` script above already clones the public upstream repositories (MOSS-Music, SongFormer, and ChordMiniApp for the ACR runtime), initializes the ChordMini submodule, syncs the ACR runtime into `acr_model/`, and tries to fetch SongFormer's checkpoints. To do it manually instead, or to refresh existing clones:
-
-```bash
-git clone https://github.com/OpenMOSS/MOSS-Music.git third_party/MOSS-Music
-git clone https://github.com/ASLP-lab/SongFormer.git third_party/SongFormer
-git clone https://github.com/ptnghia-j/ChordMiniApp.git third_party/ChordMiniApp
-# refresh existing clones via the helper script
-bash scripts/prepare_third_party.sh --update
-```
-
-The ACR (automatic chord recognition) runtime is synced from ChordMiniApp's pinned `ChordMini` submodule into `third_party/acr_model`. If you already have a ChordMiniApp checkout elsewhere, reuse it with `CHORDCRAFT_CHORDMINIAPP_DIR=/path/to/ChordMiniApp bash scripts/prepare_third_party.sh`.
-
-For SongFormer, follow the upstream instructions or run its checkpoint fetch script from inside `third_party/SongFormer`:
-
-```bash
-cd third_party/SongFormer
-python utils/fetch_pretrained.py
-cd ../..
-```
-
-The helper script tries to fetch ACR checkpoints with Git LFS from the ChordMini runtime and normalizes them into `third_party/acr_model/checkpoints/`. If you host the two checkpoint files elsewhere, set direct URLs before running the script:
-
-```bash
-CHORDCRAFT_ACR_PL_CHECKPOINT_URL=https://.../btc_combined_best.pth \
-CHORDCRAFT_ACR_SL_CHECKPOINT_URL=https://.../btc_model_large_voca.pt \
-bash scripts/prepare_third_party.sh
-```
-
-The resulting layout is:
+最终目录结构如下：
 
 ```text
 third_party/
@@ -180,68 +116,60 @@ third_party/
   SongFormer/
     src/SongFormer/ckpts/SongFormer.safetensors
     src/SongFormer/configs/SongFormer.yaml
-  ChordMiniApp/                       # source of the ACR runtime
-  acr_model/                          # synced ACR runtime used by AI-ChordCraft
-    btc_chord_recognition.py          # (provided by ChordMini)
-    config/btc_config.yaml            # (provided by ChordMini)
+  ChordMiniApp/                       # ACR 运行时来源
+  acr_model/                          # AI-ChordCraft 使用的 ACR 运行时副本
+    btc_chord_recognition.py          # （由 ChordMini 提供）
+    config/btc_config.yaml            # （由 ChordMini 提供）
     checkpoints/
-      btc/btc_combined_best.pth       # PL weights
-      SL/btc_model_large_voca.pt      # SL weights
+      btc/btc_combined_best.pth       # PL 权重
+      SL/btc_model_large_voca.pt      # SL 权重
 ```
 
 
-If you use a different location, update `.env` instead of moving the files.
+如果你把这些组件放在其他位置，不需要移动文件，直接修改 `.env` 中对应路径即可。
 
-#### 🧠 LLM Inference Service
+#### 🧠 LLM 推理服务
 
-AI-ChordCraft usually connects to an existing LLM service by `base_url`, `api_key`, and `model_name`. MOSS-Music is recommended for music understanding, but any compatible service exposing `/generate` can be used:
+AI-ChordCraft 更常用的接入方式是准备一个兼容 `/generate` 的 LLM 服务地址、API key 和 model name。推荐使用 MOSS-Music 作为音乐理解模型，也可以接入其他兼容服务：
 
 ```env
 CHORDCRAFT_SGLANG_BASE_URL=http://127.0.0.1:30000
-CHORDCRAFT_SGLANG_THINKING_BASE_URL=http://127.0.0.1:30000
-CHORDCRAFT_SGLANG_INSTRUCT_BASE_URL=http://127.0.0.1:30001
 CHORDCRAFT_SGLANG_API_KEY=your-api-key
 CHORDCRAFT_SGLANG_MODEL_NAME=your-model-name
 ```
 
-`CHORDCRAFT_SGLANG_BASE_URL` is the default endpoint. `THINKING` and `INSTRUCT` can point to separate reasoning and instruction-following services; if you deploy only one model, set all three URLs to the same address. `CHORDCRAFT_SGLANG_API_KEY` is sent as a Bearer token and can be left empty for local services without authentication. `CHORDCRAFT_SGLANG_MODEL_NAME` is sent as the request `model` field for OpenAI-compatible or router-style services; leave it empty if your local `/generate` endpoint already binds to a fixed model.
+`CHORDCRAFT_SGLANG_BASE_URL` 是统一 LLM 地址，默认所有文本生成任务都走这一个端点。`CHORDCRAFT_SGLANG_API_KEY` 会以 Bearer Token 形式发送；本地无鉴权服务可以留空。`CHORDCRAFT_SGLANG_MODEL_NAME` 会作为请求中的 `model` 字段发送，适合 OpenAI-compatible 或路由型服务；如果本地 `/generate` 服务已经固定绑定模型，可以留空。
 
-For a local MOSS-Music + SGLang setup, install the upstream runtime dependencies first, then start one or two local services:
+如果使用本地 MOSS-Music + SGLang，请先安装上游运行依赖，然后启动一个本地服务：
 
 ```bash
-# Start both Thinking and Instruct endpoints.
-bash scripts/start_llm_sglang.sh dual
-
-# Or start only the Instruct endpoint.
-bash scripts/start_llm_sglang.sh instruct
+bash scripts/start_llm_sglang.sh
 ```
 
-The script reads `.env` variables such as `CHORDCRAFT_SGLANG_WORKDIR`, `CHORDCRAFT_SGLANG_THINKING_MODEL_PATH`, `CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH`, ports, and GPU assignment. This script is optional; hosted OpenAI-compatible services only need the URL, API key, and model name above.
+脚本默认启动 `CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH` 指向的模型，端口默认 `30000`。双模型变量仍向后兼容，但不是默认部署方式。这个脚本是可选方案；如果使用托管的 OpenAI-compatible 服务，只需要配置上面的 URL、API key 和 model name。
 
-#### 🧱 SongFormer Structure Service
+#### 🧱 SongFormer 结构划分服务
 
-Song structure segmentation uses SongFormer by default. Start SongFormer separately and configure the service address in `.env`:
+结构切分默认使用 SongFormer。请单独启动 SongFormer 服务，并在 `.env` 中配置服务地址：
 
 ```env
 CHORDCRAFT_SONGFORMER_BASE_URL=http://127.0.0.1:8080
 CHORDCRAFT_SONGFORMER_TIMEOUT=900
 ```
 
-AI-ChordCraft uploads the audio file to:
+AI-ChordCraft 会把音频文件上传到：
 
 ```text
 POST ${CHORDCRAFT_SONGFORMER_BASE_URL}/api/songformer/segment
 ```
 
-The service should return JSON containing `segments`, `data.segments`, or `rawSegments`. Each segment should include a start time, end time, and section label; AI-ChordCraft normalizes common labels such as intro, verse, chorus, bridge, interlude, solo, and outro. If the service runs on another host or port, only replace `CHORDCRAFT_SONGFORMER_BASE_URL`. Increase `CHORDCRAFT_SONGFORMER_TIMEOUT` for long audio or slower GPU queues.
-
-After cloning SongFormer and placing its checkpoint/config files, you can expose the service expected by AI-ChordCraft:
+clone SongFormer 并放好 checkpoint/config 后，可以启动 AI-ChordCraft 期望的结构服务：
 
 ```bash
 bash scripts/start_songformer_service.sh
 ```
 
-You can also use a local in-process SongFormer runtime by setting `structure_engine=songformer-local` and pointing AI-ChordCraft to the SongFormer root and model files:
+也可以使用进程内 SongFormer 运行时，此时需要设置 `structure_engine=songformer-local`，并额外指定 SongFormer 根目录和模型文件：
 
 ```env
 CHORDCRAFT_SONGFORMER_ROOT=./third_party/SongFormer
@@ -250,101 +178,31 @@ SONGFORMER_CHECKPOINT=src/SongFormer/ckpts/SongFormer.safetensors
 SONGFORMER_CONFIG=src/SongFormer/configs/SongFormer.yaml
 ```
 
-#### 🎹 Chord-Recognition Runtime
-
-Chord recognition requires a local automatic chord-recognition runtime. By default, this project connects to the method implementation associated with **Enhancing Automatic Chord Recognition via Pseudo-Labeling and Knowledge Distillation**. Point the runtime/model directory to:
-
-```env
-CHORDCRAFT_ACR_MODEL_DIR=./third_party/acr_model
-```
-
-This runtime is loaded in-process by AI-ChordCraft. No separate ACR service is required, but the runtime directory must contain `btc_chord_recognition.py`, `config/btc_config.yaml`, and the BTC checkpoints shown in the `third_party/` layout above. `scripts/prepare_third_party.sh` places checkpoint files under `third_party/acr_model/checkpoints/`.
-
-#### 🌐 Run the Web App
+#### 🌐 启动 Web 应用
 
 ```bash
 bash scripts/run_demo.sh
 ```
 
-Open:
+打开：
 
 ```text
 http://127.0.0.1:7862
 ```
 
-### 🪶 No-GPU Path
-
-The full audio pipeline needs a GPU, but the most useful part for a player —
-**analyzing a progression and turning it into a playable guitar arrangement** —
-runs on CPU through the companion project
-[AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills):
-
-```bash
-git clone https://github.com/jassary08/AI-Musician-Skills
-cd AI-Musician-Skills
-
-# Analyze a progression (Roman numerals, functions, cadences)
-python harmony-chart-skill/scripts/analyze_harmony.py \
-  --input-json '{"key":"C major","progression":"1645","output_html":true}' --pretty
-
-# Turn chords into a beginner-friendly, capo-aware guitar arrangement
-python guitar-arrange-skill/scripts/arrange_guitar.py \
-  --input-json '{"task":"guitar_arrange","key":"A major","style":"pop","user_level":"beginner","chords":["A","E","F#m","D"]}' --pretty
-```
-
-No model weights, no GPU, no audio required. This is also what AI-ChordCraft
-calls internally for its guitar arrangement and follow-up "how do I play this"
-questions.
-
-### 🛠️ Annotator (developer tool)
-
-`frontend/annotator.html` (`/annotator`, backed by `/api/voicing-*`) is a
-**developer-facing data tool** for rating and curating guitar voicings, not part
-of the end-user transcription flow. It depends on the voicing database shipped
-in the sibling [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
-project (resolved via `CHORDCRAFT_GUITAR_SKILL_DIR`); without it, the voicing
-endpoints return empty.
-
-### 🎚️ Arrangement API (`/api/arrange`)
-
-The agent-assisted **arrangement** workflow — the part that reasons about how to
-re-voice a transcribed song for specific instruments, style, and difficulty — is
-exposed as a JSON API rather than a button in the main UI. It takes an existing
-analysis plus arrangement preferences and returns an instrument-aware
-arrangement:
-
-```bash
-curl -X POST http://127.0.0.1:7862/api/arrange \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filename": "song.mp3",
-    "audio_base64": "<base64 audio>",
-    "analysis": { ... output from /api/analyze ... },
-    "instruments": ["guitar", "piano", "bass"],
-    "style": "原曲风格",
-    "difficulty": "intermediate",
-    "density": "medium",
-    "purpose": "伴奏"
-  }'
-```
-
-Like `/api/analyze`, it requires the LLM service (GPU). For CPU-only guitar
-arrangement, use [AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
-instead.
-
-### 🗂️ Project Layout
+### 🗂️ 项目结构
 
 ```text
 AI-ChordCraft/
-  app.py                  # FastAPI web server
-  frontend/               # Browser UI
-  third_party/README.md   # Local runtime layout; upstream code/checkpoints are ignored
+  app.py                  # FastAPI Web 服务
+  frontend/               # 浏览器 UI
+  third_party/README.md   # 本地运行时结构说明；上游代码和 checkpoint 会被忽略
   src/
-    song_analysis.py      # Main analysis workflow and chord-sheet rendering
-    chat_agent.py         # Follow-up music QA and prompt strategy
-    chord_recognition.py  # Automatic chord recognition, Essentia-style helpers, postprocessing
+    song_analysis.py      # 主分析流程与和弦谱渲染
+    chat_agent.py         # 后续音乐问答与 prompt 策略
+    chord_recognition.py  # 自动和弦识别、Essentia 风格辅助与后处理
     structure_recognition.py
-    arrangement.py        # Arrangement-agent workflow
+    arrangement.py        # 编配 Agent 流程
   scripts/
     prepare_third_party.sh
     start_llm_sglang.sh
@@ -353,20 +211,20 @@ AI-ChordCraft/
   requirements.txt
 ```
 
-### 🔗 More Information
+### 🔗 更多信息
 
-- **AI-Musician-Skills (CPU companion)**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
+- **AI-Musician-Skills（CPU 配套项目）**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
 
-### 📄 License Notes
+### 📄 许可证说明
 
-Before public release or redistribution, check the licenses of this repository, external model weights, external runtimes, dependencies, and example music separately. Do not redistribute third-party checkpoints or copyrighted songs unless their licenses explicitly allow it.
+发布或再分发前，请分别检查本仓库代码、外部模型权重、外部运行时、依赖库和示例音乐的许可证。不要随本仓库分发第三方 checkpoint 或受版权保护的音乐，除非其许可证明确允许。
 
-### 📝 Citation
+### 📝 引用
 
-If you use AI-ChordCraft in your research or application, please cite this project and the upstream models or methods you use:
+如果你在研究或应用中使用 AI-ChordCraft，请引用本项目以及实际使用到的上游模型和方法：
 
 ```bibtex
 @misc{aichordcraft2026,

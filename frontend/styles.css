@@ -711,6 +711,34 @@ textarea:disabled {
   overflow-wrap: anywhere;
 }
 
+.analysis-warning-panel {
+  margin: 18px 24px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(203, 118, 30, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 248, 232, 0.88);
+  color: #66420c;
+}
+
+.analysis-warning-panel strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #7c4a03;
+  font-size: 14px;
+}
+
+.analysis-warning-panel ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.analysis-warning-panel li {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .song-map {
   display: grid;
   gap: 12px;

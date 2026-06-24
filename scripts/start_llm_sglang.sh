@@ -12,14 +12,10 @@ fi
 
 LLM_RUNTIME_ROOT="${CHORDCRAFT_LLM_RUNTIME_ROOT:-./third_party/MOSS-Music}"
 SGLANG_WORKDIR="${CHORDCRAFT_SGLANG_WORKDIR:-${LLM_RUNTIME_ROOT}/sglang}"
-THINKING_MODEL_PATH="${CHORDCRAFT_SGLANG_THINKING_MODEL_PATH:-${LLM_RUNTIME_ROOT}/model/MOSS-Music-8B-Thinking}"
 INSTRUCT_MODEL_PATH="${CHORDCRAFT_SGLANG_INSTRUCT_MODEL_PATH:-${LLM_RUNTIME_ROOT}/model/MOSS-Music-8B-Instruct}"
-THINKING_PORT="${CHORDCRAFT_SGLANG_THINKING_PORT:-30000}"
-INSTRUCT_PORT="${CHORDCRAFT_SGLANG_INSTRUCT_PORT:-30001}"
-THINKING_CUDA_VISIBLE_DEVICES="${CHORDCRAFT_SGLANG_THINKING_CUDA_VISIBLE_DEVICES:-0}"
-INSTRUCT_CUDA_VISIBLE_DEVICES="${CHORDCRAFT_SGLANG_INSTRUCT_CUDA_VISIBLE_DEVICES:-1}"
+INSTRUCT_PORT="${CHORDCRAFT_SGLANG_INSTRUCT_PORT:-30000}"
+INSTRUCT_CUDA_VISIBLE_DEVICES="${CHORDCRAFT_SGLANG_INSTRUCT_CUDA_VISIBLE_DEVICES:-0}"
 LOG_DIR="${CHORDCRAFT_LOG_DIR:-./logs}"
-MODE="${1:-dual}"
 
 mkdir -p "${LOG_DIR}"
 
@@ -62,22 +58,21 @@ start_server() {
 
 require_path "SGLang workdir" "${SGLANG_WORKDIR}"
 
-case "${MODE}" in
-  dual)
-    start_server "thinking" "${THINKING_MODEL_PATH}" "${THINKING_PORT}" "${THINKING_CUDA_VISIBLE_DEVICES}"
-    start_server "instruct" "${INSTRUCT_MODEL_PATH}" "${INSTRUCT_PORT}" "${INSTRUCT_CUDA_VISIBLE_DEVICES}"
-    ;;
-  thinking)
-    start_server "thinking" "${THINKING_MODEL_PATH}" "${THINKING_PORT}" "${THINKING_CUDA_VISIBLE_DEVICES}"
-    ;;
-  instruct|one)
-    start_server "instruct" "${INSTRUCT_MODEL_PATH}" "${INSTRUCT_PORT}" "${INSTRUCT_CUDA_VISIBLE_DEVICES}"
-    ;;
-  *)
-    echo "Usage: bash scripts/start_llm_sglang.sh [dual|thinking|instruct|one]" >&2
-    exit 2
-    ;;
-esac
+if [ "$#" -gt 0 ]; then
+  echo "This script now starts only the Instruct model; command-line modes are no longer used." >&2
+  echo "Usage: bash scripts/start_llm_sglang.sh" >&2
+  exit 2
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${INSTRUCT_PORT}/model_info" >/dev/null 2>&1; then
+    echo "SGLang Instruct service is already running on port ${INSTRUCT_PORT}."
+    echo "Skip starting another copy to avoid duplicate GPU memory allocation."
+    exit 0
+  fi
+fi
+
+start_server "instruct" "${INSTRUCT_MODEL_PATH}" "${INSTRUCT_PORT}" "${INSTRUCT_CUDA_VISIBLE_DEVICES}"
 
 echo
 echo "SGLang startup commands were launched in the background."
