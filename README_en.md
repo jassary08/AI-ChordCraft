@@ -78,7 +78,7 @@ Audio Extraction and Normalization
         |
         +--> ACR Chord Recognition
         |
-        +--> External LLM Lyrics ASR and Song Description (full mode)
+        +--> External LLM Lyrics ASR
         |
         v
 Section Alignment and Chord-Sheet Rendering
@@ -212,7 +212,7 @@ AI-ChordCraft/
 
 ### 🔗 More Information
 
-- **AI-Musician-Skills (CPU companion project)**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
+- **AI-Musician-Skills**: [https://github.com/jassary08/AI-Musician-Skills](https://github.com/jassary08/AI-Musician-Skills)
 - **MOSS-Music**: [https://github.com/OpenMOSS/MOSS-Music](https://github.com/OpenMOSS/MOSS-Music)
 - **Automatic Chord Recognition paper**: [https://arxiv.org/abs/2602.19778](https://arxiv.org/abs/2602.19778)
 - **SongFormer paper**: [https://arxiv.org/abs/2510.02797](https://arxiv.org/abs/2510.02797)
