@@ -68,7 +68,6 @@ SUPPORTED_MEDIA_SUFFIXES = SUPPORTED_AUDIO_SUFFIXES | SUPPORTED_VIDEO_SUFFIXES
 class AnalyzeRequest(BaseModel):
     filename: str
     audio_base64: str
-    analysis_mode: str = "core"
     backend: str = DEFAULT_BACKEND
     base_url: str | None = DEFAULT_SGLANG_BASE_URL
     thinking_base_url: str | None = DEFAULT_SGLANG_THINKING_BASE_URL
@@ -256,10 +255,20 @@ def candidate_sort_key(item: dict[str, Any], annotation: dict[str, Any] | None) 
     return (approved, commonness, open_bonus + common_tag, -difficulty)
 
 
-def extract_audio_from_video(video_path: str, output_path: str) -> None:
+def transcode_media_to_wav(input_path: str, output_path: str) -> None:
     command = [
-        resolve_ffmpeg_exe(), "-y", "-i", video_path,
-        "-vn", "-ac", "1", "-ar", "16000", "-f", "wav", output_path,
+        resolve_ffmpeg_exe(),
+        "-y",
+        "-i",
+        input_path,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "44100",
+        "-f",
+        "wav",
+        output_path,
     ]
     try:
         subprocess.run(
@@ -270,9 +279,9 @@ def extract_audio_from_video(video_path: str, output_path: str) -> None:
             text=True,
         )
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=500, detail="ffmpeg is required to extract audio from video.") from exc
+        raise HTTPException(status_code=500, detail="ffmpeg is required to prepare uploaded media.") from exc
     except subprocess.CalledProcessError as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to extract audio from video: {exc.stderr}") from exc
+        raise HTTPException(status_code=400, detail=f"Failed to prepare uploaded media: {exc.stderr}") from exc
 
 
 def decode_media_to_audio_tempfile(request: AnalyzeRequest, temp_dir: str) -> str:
@@ -294,11 +303,9 @@ def decode_media_to_audio_tempfile(request: AnalyzeRequest, temp_dir: str) -> st
 
     input_path = Path(temp_dir) / f"input{suffix}"
     input_path.write_bytes(data)
-    if suffix in SUPPORTED_VIDEO_SUFFIXES:
-        audio_path = str(Path(temp_dir) / "input.wav")
-        extract_audio_from_video(str(input_path), audio_path)
-        return audio_path
-    return str(input_path)
+    audio_path = str(Path(temp_dir) / "prepared.wav")
+    transcode_media_to_wav(str(input_path), audio_path)
+    return audio_path
 
 
 def decode_chat_audio_to_tempfile(request: ChatRequest, temp_dir: str) -> str | None:
@@ -515,7 +522,6 @@ def analyze(request: AnalyzeRequest) -> JSONResponse:
                 max_sections=request.max_sections,
                 chord_engine=request.chord_engine,
                 structure_engine=request.structure_engine,
-                analysis_mode=request.analysis_mode,
             )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -42,7 +42,6 @@ const ANALYSIS_DEFAULTS = {
   max_new_tokens: 4096,
   temperature: 0,
   workflow: true,
-  analysis_mode: "core",
   max_sections: 12,
   chord_engine: "plkd-btc",
   structure_engine: "songformer",
@@ -873,13 +872,9 @@ function stopPlaybackAtBoundary() {
 
 function showProcessing() {
   const node = processingTemplate.content.cloneNode(true);
-  const modeInput = form.querySelector('input[name="analysis_mode"]:checked');
-  const mode = modeInput ? modeInput.value : "core";
   const copy = node.querySelector("#processing-copy");
   if (copy) {
-    copy.textContent = mode === "full"
-      ? "正在识别结构、歌词、整体描述与和弦。"
-      : "正在识别结构与和弦，已跳过歌词和整体 LLM 分析。";
+    copy.textContent = "正在识别结构与和弦；若检测到 MOSS-Music 服务，将自动补充歌词。";
   }
   chartView.className = "chart-surface";
   chartView.replaceChildren(node);
@@ -913,21 +908,13 @@ async function submitAnalysis(event) {
     selectedSegments = new Map();
     syncChatFeed();
     updateSelectionUI();
-    const modeInput = form.querySelector('input[name="analysis_mode"]:checked');
-    const analysisMode = modeInput ? modeInput.value : "core";
     const payload = {
       filename: file.name,
       audio_base64: mediaBase64,
       ...ANALYSIS_DEFAULTS,
-      analysis_mode: analysisMode,
     };
 
-    setStatus(
-      analysisMode === "full"
-        ? (isVideo ? "抽取音频并完整分析" : "运行 Full 分析")
-        : (isVideo ? "抽取音频并核心分析" : "运行 Core 分析"),
-      "busy",
-    );
+    setStatus(isVideo ? "抽取音频并分析" : "运行分析", "busy");
     const response = await fetch(apiUrl("/api/analyze"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

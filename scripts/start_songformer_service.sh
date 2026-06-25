@@ -12,7 +12,7 @@ fi
 
 export CHORDCRAFT_SONGFORMER_ROOT="${CHORDCRAFT_SONGFORMER_ROOT:-./third_party/SongFormer}"
 export SONGFORMER_MODEL_NAME="${SONGFORMER_MODEL_NAME:-SongFormer}"
-export SONGFORMER_CHECKPOINT="${SONGFORMER_CHECKPOINT:-src/SongFormer/ckpts/SongFormer.safetensors}"
-export SONGFORMER_CONFIG="${SONGFORMER_CONFIG:-src/SongFormer/configs/SongFormer.yaml}"
+export SONGFORMER_CHECKPOINT="${SONGFORMER_CHECKPOINT:-SongFormer.safetensors}"
+export SONGFORMER_CONFIG="${SONGFORMER_CONFIG:-SongFormer.yaml}"
 
 python scripts/songformer_service.py

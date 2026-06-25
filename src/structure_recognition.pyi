@@ -270,11 +270,6 @@ def _temporary_cwd(path: Path):
         os.chdir(previous_cwd)
 
 
-def _songformer_runtime_cwd(songformer_root: Path) -> Path:
-    candidate = songformer_root / "src" / "SongFormer"
-    return candidate if candidate.exists() else songformer_root
-
-
 def _load_local_songformer_module() -> Any:
     global _LOCAL_SONGFORMER_MODULE
     if _LOCAL_SONGFORMER_MODULE is not None:
@@ -326,6 +321,7 @@ def _patch_gradio_textbox_compat() -> None:
         return
     if "show_copy_button" in signature.parameters or getattr(textbox, "_chordcraft_patched", False):
         return
+from gradio.events import Dependency
 
     class CompatibleTextbox(textbox):  # type: ignore[misc, valid-type]
         _chordcraft_patched = True
@@ -347,17 +343,16 @@ def recognize_structure_with_songformer_local(
     try:
         module = _load_local_songformer_module()
         songformer_root = Path(getattr(module, "ROOT_DIR", _default_songformer_root()))
-        runtime_cwd = _songformer_runtime_cwd(songformer_root)
         with _LOCAL_SONGFORMER_LOCK:
             if not _LOCAL_SONGFORMER_INITIALIZED:
-                with _temporary_cwd(runtime_cwd):
+                with _temporary_cwd(songformer_root):
                     module.initialize_models(
                         os.environ.get("SONGFORMER_MODEL_NAME", "SongFormer"),
                         checkpoint=os.environ.get("SONGFORMER_CHECKPOINT", "SongFormer.safetensors"),
                         config_path=os.environ.get("SONGFORMER_CONFIG", "SongFormer.yaml"),
                     )
                 _LOCAL_SONGFORMER_INITIALIZED = True
-        with _temporary_cwd(runtime_cwd):
+        with _temporary_cwd(songformer_root):
             if hasattr(module, "segment_audio_file"):
                 result = module.segment_audio_file(audio_path)
             else:
